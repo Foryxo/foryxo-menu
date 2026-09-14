@@ -41,19 +41,21 @@ export default async function LoginPage({
   const phoneEnabled = flags.phoneOtp && (geography.countryCode
     ? geography.isIran
     : process.env.NODE_ENV !== "production");
+  const canSignIn = flags.emailOtp || phoneEnabled || googleEnabled;
 
   return (
     <PageShell locale={locale}>
       <section className="mx-auto flex max-w-md flex-col px-4 pb-24 pt-16">
         <h1 className="display-2 text-center">{t.auth.loginTitle}</h1>
         <p className="mt-2 text-center text-sm text-muted">{t.auth.loginSubtitle}</p>
-        {!flags.emailOtp && !phoneEnabled && !googleEnabled ? (
+        {!canSignIn ? (
           <p className="mt-6 rounded-xl border border-amber-400/50 bg-amber-500/10 p-4 text-center text-sm" role="status">
             {locale === "fa" ? "ورود در حال راه‌اندازی است. ارسال کد تا فعال شدن سرویس ایمیل یا پیامک در دسترس نیست." : "Sign-in is being configured. Codes cannot be sent until email or SMS delivery is enabled."}
           </p>
         ) : null}
-        <div className="mt-10">
-          <LoginPanel
+        {canSignIn ? (
+          <div className="mt-10">
+            <LoginPanel
             locale={locale}
             next={localizedSafeNext(next, locale)}
             googleEnabled={googleEnabled}
@@ -77,9 +79,10 @@ export default async function LoginPage({
               terms: t.auth.terms,
               error: t.common.error,
             }}
-          />
-        </div>
-        <p className="mt-6 text-center text-xs text-muted">{t.auth.noAccount}</p>
+            />
+          </div>
+        ) : null}
+        {canSignIn ? <p className="mt-6 text-center text-xs text-muted">{t.auth.noAccount}</p> : null}
         <p className="mt-8 text-center text-[11px] leading-5 text-muted">
           {t.auth.terms}
         </p>
