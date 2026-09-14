@@ -6,7 +6,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { cookies } from "next/headers";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, ne } from "drizzle-orm";
 import { getDb } from "@/domains/db/client";
 import {
   builderDrafts,
@@ -106,10 +106,11 @@ export async function POST(req: NextRequest) {
     await db
       .select()
       .from(projects)
-      .where(and(eq(projects.businessId, biz.id)))
+      .where(and(eq(projects.businessId, biz.id), ne(projects.status, "cancelled")))
+      .orderBy(desc(projects.createdAt))
       .limit(1)
   )[0];
-  if (existingProject && existingProject.status !== "cancelled") {
+  if (existingProject) {
     return NextResponse.json({ ok: true, projectId: existingProject.id, businessId: biz.id, existing: true });
   }
 

@@ -50,6 +50,7 @@ export function QrManager({
     menus.find((menu) => menu.status === "published")?.id ?? menus[0]?.id ?? "",
   );
   const [tableCount, setTableCount] = useState(0);
+  const [tableQrAllowance, setTableQrAllowance] = useState(0);
   const [branchId, setBranchId] = useState("");
   const [codes, setCodes] = useState<Code[]>([]);
   const [busy, setBusy] = useState(true);
@@ -71,6 +72,7 @@ export function QrManager({
       );
       const data = await response.json();
       setCodes(response.ok ? data.codes : []);
+      setTableQrAllowance(response.ok ? data.tableQrAllowance ?? 0 : 0);
       setTableCount(response.ok ? data.codes.filter((code: Code) => code.tableLabel !== null && code.branchId === selectedBranchId).length : 0);
     } finally {
       setBusy(false);
@@ -99,11 +101,11 @@ export function QrManager({
           ? "کدهای دائمی آماده‌اند. کدهای قبلی بدون تغییر باقی ماندند."
           : "Permanent codes are ready. Existing codes were kept unchanged.",
       );
-    } catch {
+    } catch (error) {
       setMessage(
-        fa
-          ? "ساخت QR انجام نشد؛ دوباره تلاش کنید."
-          : "QR generation failed. Please try again.",
+        error instanceof Error && error.message === "table_qr_quote_or_payment_required"
+          ? (fa ? "تعداد QR میزها از تعداد تأیید و تسویه‌شده بیشتر است؛ ابتدا برای افزایش تعداد، استعلام جدید بفرستید." : "Table QR quantity exceeds the approved, funded order. Send a new quote for more codes first.")
+          : (fa ? "ساخت QR انجام نشد؛ دوباره تلاش کنید." : "QR generation failed. Please try again."),
       );
     } finally {
       setBusy(false);
@@ -169,8 +171,8 @@ export function QrManager({
             htmlFor="qr-count"
             hint={
               fa
-                ? "از ۰ تا ۵۰۰؛ کد اصلی همیشه ساخته می‌شود."
-                : "0–500; the main QR is always created."
+                ? `از ۰ تا ۵۰۰؛ سقف QR میز پس از تأیید و تسویه سفارش: ${tableQrAllowance}؛ کد اصلی رایگان است.`
+                : `0–500; approved and funded table QR allowance: ${tableQrAllowance}. The main QR is included.`
             }
           >
             <Input

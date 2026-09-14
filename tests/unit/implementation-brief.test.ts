@@ -29,7 +29,7 @@ describe("creator implementation brief", () => {
       business: { id: "business-1", name: "کافه", nameEn: "Cafe", slug: "cafe", businessType: "cafe" },
       owner: { name: "Customer", email: "customer@example.com" },
       configuration,
-      assets: [{ filename: "cake.jpg", kind: "food_photo", dishOrAssetName: "Cake", customerInstructions: "Brighten", workflowStatus: "pending", mime: "image/jpeg", size: 1234 }],
+      assets: [{ mediaId: "media-1", downloadUrl: "https://menu.foryxo.com/api/media/cafe/cake.jpg", filename: "cake.jpg", kind: "food_photo", dishOrAssetName: "Cake", customerInstructions: "Brighten", workflowStatus: "pending", mime: "image/jpeg", size: 1234 }],
     });
 
     expect(brief.branches).toMatchObject({ totalLocations: 3, menuMode: "unique" });
@@ -38,6 +38,7 @@ describe("creator implementation brief", () => {
     expect(brief.hostingAndDomain.plannedMenuPath).toBe("/menus/cafe/menu");
     expect(brief.submittedEstimate.initialTotal).toBe(3_000_000);
     expect(brief.productionAssets[0].dishOrAssetName).toBe("Cake");
+    expect(brief.productionAssets[0].downloadUrl).toContain("/api/media/");
     expect(brief.completeSubmittedSnapshot).toEqual(configuration);
   });
 });

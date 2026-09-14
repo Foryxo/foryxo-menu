@@ -10,6 +10,7 @@ import { serviceRequests, serviceQuotes } from "@/domains/db/schema/index";
 import { and, eq } from "drizzle-orm";
 import { audit } from "@/domains/audit/log";
 import { ipRateLimit } from "@/domains/auth/security";
+import { resolveBusinessAttachments } from "@/domains/storage/attachments";
 
 const schema = z.object({
   requestId: z.string().uuid(),
@@ -45,6 +46,13 @@ export async function POST(req: NextRequest) {
     .limit(1);
   if (!request) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
+  // The browser-provided URL, filename, and MIME are display hints only. A
+  // quote must never attach another tenant's file or an arbitrary external URL.
+  const attachments = await resolveBusinessAttachments(request.businessId, body.data.attachments.map(({ mediaId }) => mediaId));
+  if (!attachments) {
+    return NextResponse.json({ error: "invalid_attachment" }, { status: 400 });
+  }
+
   // Replace any pending quote with the new one (no charging happens here).
   await db.delete(serviceQuotes).where(and(eq(serviceQuotes.requestId, request.id), eq(serviceQuotes.status, "pending")));
   const [quote] = await db
@@ -54,7 +62,7 @@ export async function POST(req: NextRequest) {
       requestId: request.id,
       amount: body.data.waive ? 0 : body.data.amount,
       scope: body.data.scope,
-      attachments: body.data.attachments,
+      attachments,
       status: body.data.waive ? "waived" : "pending",
     })
     .returning();

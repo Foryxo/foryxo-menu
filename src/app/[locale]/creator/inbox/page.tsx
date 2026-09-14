@@ -4,6 +4,7 @@ import { isLocale } from "@/domains/i18n/config";
 import { formatDateTime } from "@/domains/i18n/format";
 import { getCreatorInbox } from "@/domains/creator/data";
 import { ChatComposer } from "@/components/creator/chat-composer";
+import { safeMediaUrl } from "@/domains/storage/attachments";
 
 type Attachment = { mediaId: string; url: string; filename: string; mime: string };
 
@@ -52,7 +53,7 @@ export default async function InboxPage({ params, searchParams }: {
                 return <article key={message.id} className={`max-w-[88%] rounded-2xl p-3 ${mine ? "ms-auto accent-soft-bg" : "me-auto bg-subtle"}`}>
                   <p className="mb-1 text-[10px] font-bold text-muted">{mine ? (fa ? "شما" : "You") : author?.name || (fa ? "مشتری" : "Customer")}</p>
                   <p className="whitespace-pre-wrap text-sm leading-6">{message.body}</p>
-                  {attachments.length ? <div className="mt-2 flex flex-wrap gap-2">{attachments.map((a) => <a key={a.mediaId} href={a.url} target="_blank" rel="noreferrer" className="rounded-lg border border-line bg-elevated px-3 py-2 text-xs font-bold hover:text-[var(--accent)]">{a.filename}</a>)}</div> : null}
+                  {attachments.length ? <div className="mt-2 flex flex-wrap gap-2">{attachments.map((a) => { const href = safeMediaUrl(a.url); return href ? <a key={a.mediaId} href={href} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-line bg-elevated px-3 py-2 text-xs font-bold hover:text-[var(--accent)]">{a.filename}</a> : null; })}</div> : null}
                   <time className="mt-2 block text-[10px] text-muted">{formatDateTime(message.createdAt, l)}</time>
                 </article>;
               })}

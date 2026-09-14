@@ -9,6 +9,7 @@ import { Card, CardContent, Badge } from "@/components/ui/primitives";
 import { NewRequestForm } from "./new-request-form";
 import { ChatComposer } from "@/components/creator/chat-composer";
 import { QuoteActions } from "./quote-actions";
+import { safeMediaUrl } from "@/domains/storage/attachments";
 
 export default async function RequestsPage({
   params,
@@ -94,12 +95,12 @@ export default async function RequestsPage({
                         <span className="text-lg font-black accent-text">{formatToman(quote.amount, l)}</span>
                       </p>
                       <p className="mt-1 text-xs text-muted">{quote.scope}</p>
-                      {Array.isArray(quote.attachments) && quote.attachments.length ? <div className="mt-2 flex flex-wrap gap-2">{(quote.attachments as {mediaId:string;url:string;filename:string}[]).map((item)=><a key={item.mediaId} href={item.url} target="_blank" rel="noreferrer" className="rounded-lg border border-line bg-elevated px-3 py-2 text-xs font-bold">{item.filename}</a>)}</div> : null}
+                      {Array.isArray(quote.attachments) && quote.attachments.length ? <div className="mt-2 flex flex-wrap gap-2">{(quote.attachments as {mediaId:string;url:string;filename:string}[]).map((item)=>{ const href = safeMediaUrl(item.url); return href ? <a key={item.mediaId} href={href} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-line bg-elevated px-3 py-2 text-xs font-bold">{item.filename}</a> : null; })}</div> : null}
                       <QuoteActions quoteId={quote.id} locale={l} />
                     </div>
                   ) : quote ? <p className="mt-4 text-xs font-bold text-muted">{l === "fa" ? `وضعیت استعلام: ${quote.status}` : `Quote status: ${quote.status}`}</p> : null}
                   <div className="mt-5 space-y-2 border-t border-line pt-4">
-                    {messages.filter(({message}) => message.requestId === r.id && !message.isInternal).map(({message,author}) => { const mine = message.authorUserId === session.user.id; return <div key={message.id} className={`max-w-[88%] rounded-xl p-3 ${mine ? "ms-auto accent-soft-bg" : "me-auto bg-subtle"}`}><p className="mb-1 text-[10px] font-bold text-muted">{mine ? (l === "fa" ? "شما" : "You") : author?.name || (l === "fa" ? "پشتیبانی" : "Support")}</p><p className="whitespace-pre-wrap text-sm">{message.body}</p><time className="mt-1 block text-[10px] text-muted">{formatDateTime(message.createdAt, l)}</time></div>})}
+                    {messages.filter(({message}) => message.requestId === r.id && !message.isInternal).map(({message,author}) => { const mine = message.authorUserId === session.user.id; const attachments = (message.attachments ?? []) as {mediaId:string;url:string;filename:string}[]; return <div key={message.id} className={`max-w-[88%] rounded-xl p-3 ${mine ? "ms-auto accent-soft-bg" : "me-auto bg-subtle"}`}><p className="mb-1 text-[10px] font-bold text-muted">{mine ? (l === "fa" ? "شما" : "You") : author?.name || (l === "fa" ? "پشتیبانی" : "Support")}</p><p className="whitespace-pre-wrap text-sm">{message.body}</p>{attachments.length ? <div className="mt-2 flex flex-wrap gap-2">{attachments.map((item) => { const href = safeMediaUrl(item.url); return href ? <a key={item.mediaId} href={href} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-line bg-elevated px-3 py-2 text-xs font-bold">{item.filename}</a> : null; })}</div> : null}<time className="mt-1 block text-[10px] text-muted">{formatDateTime(message.createdAt, l)}</time></div>})}
                     <ChatComposer requestId={r.id} businessId={r.businessId} locale={l} />
                   </div>
                 </CardContent>

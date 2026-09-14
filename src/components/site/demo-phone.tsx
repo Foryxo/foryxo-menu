@@ -48,23 +48,18 @@ export function DemoPhone({
         </div>
         {/* Category chips */}
         <div className="mt-2 flex gap-1 overflow-hidden">
-          {demo.categories.slice(0, 4).map((c, i) => (
-            <button
-              key={c.slug}
-              type="button"
-              disabled={!interactive}
-              onClick={() => interactive && setCatIdx(i)}
-              tabIndex={interactive ? 0 : -1}
-              className="rounded-full px-2 py-0.5 text-[8px] font-bold whitespace-nowrap"
-              style={{
-                background: i === catIdx ? theme.accent : theme.card,
-                color: i === catIdx ? accentForeground : theme.fg,
-                border: `1px solid ${theme.line}`,
-              }}
-            >
-              {fa ? c.name.fa : c.name.en}
-            </button>
-          ))}
+          {demo.categories.slice(0, 4).map((c, i) => {
+            const className = "rounded-full px-2 py-0.5 text-[8px] font-bold whitespace-nowrap";
+            const style = {
+              background: i === catIdx ? theme.accent : theme.card,
+              color: i === catIdx ? accentForeground : theme.fg,
+              border: `1px solid ${theme.line}`,
+            };
+            const label = fa ? c.name.fa : c.name.en;
+            return interactive
+              ? <button key={c.slug} type="button" onClick={() => setCatIdx(i)} className={className} style={style}>{label}</button>
+              : <span key={c.slug} className={className} style={style}>{label}</span>;
+          })}
         </div>
       </div>
 

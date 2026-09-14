@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/primitives";
 import { authClient } from "@/domains/auth/client";
 import { toAsciiDigits } from "@/domains/i18n/normalize";
 import type { Locale } from "@/domains/i18n/config";
+import { localizedSafeNext } from "@/domains/i18n/safe-next";
 
 interface Labels {
   email: string;
@@ -68,7 +69,7 @@ export function LoginPanel({
       : /^\+?\d[\d\s()-]{8,18}$/.test(toAsciiDigits(identifier.trim()));
 
   async function finishSignIn() {
-    const safeNext = next && next.startsWith("/") ? next : null;
+    const safeNext = localizedSafeNext(next, locale);
     if (safeNext) {
       router.push(safeNext);
       router.refresh();
@@ -272,7 +273,7 @@ export function LoginPanel({
                 onClick={() =>
                   authClient.signIn.social({
                     provider: "google",
-                    callbackURL: next ?? `/${locale}/dashboard`,
+                    callbackURL: localizedSafeNext(next, locale) ?? `/${locale}/dashboard`,
                   })
                 }
               >

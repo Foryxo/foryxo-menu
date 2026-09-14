@@ -21,7 +21,7 @@ export const revalidate = 300;
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const model = await getPublishedReadModel(slug);
-  if (!model) return { title: "Menu not found", robots: { index: false, follow: false } };
+  if (!model) notFound();
   const title = `${model.title} | ${model.titleEn ?? "Menu"}`;
   const description = model.description ?? model.descriptionEn ?? `${model.title} menu with prices and photos`;
 

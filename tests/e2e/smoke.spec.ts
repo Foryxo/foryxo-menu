@@ -54,6 +54,8 @@ test("live menu language switch synchronizes URL and document direction", async 
 
 test("missing pages render the branded noindex error experience", async ({ page, request }) => {
   expect((await request.get("/fa/not-a-real-route")).status()).toBe(404);
+  expect((await request.get("/menus/not-real/menu")).status()).toBe(404);
+  expect((await request.get(`/orders/${"a".repeat(36)}`)).status()).toBe(404);
   await page.goto("/menus/not-real/menu");
   await expect(page.locator('meta[name="robots"][content*="noindex"]').first()).toHaveAttribute("content", /noindex/);
   await expect(page.getByRole("heading").first()).toBeVisible();
@@ -207,7 +209,8 @@ test.beforeEach(async ({ page }) => {
   (page as typeof page & { __runtimeErrors?: string[] }).__runtimeErrors = errors;
 });
 
-test.afterEach(async ({ page }) => {
+test.afterEach(async ({ page }, testInfo) => {
   const errors = (page as typeof page & { __runtimeErrors?: string[] }).__runtimeErrors ?? [];
-  expect(errors.filter((message) => !message.includes("favicon")), "browser console/runtime errors").toEqual([]);
+  const expectedMissing = testInfo.title === "missing pages render the branded noindex error experience";
+  expect(errors.filter((message) => !message.includes("favicon") && !(expectedMissing && message === "Failed to load resource: the server responded with a status of 404 (Not Found)")), "browser console/runtime errors").toEqual([]);
 });

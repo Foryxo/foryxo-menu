@@ -6,10 +6,11 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { ChevronRight, Menu, X, Globe } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { useTheme } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/brand/brand-mark";
+import { localizedSafeNext } from "@/domains/i18n/safe-next";
 
 export interface HeaderStrings {
   brand: string;
@@ -107,9 +108,7 @@ export function SiteHeader({
               {t.login}
             </Link>
           )}
-          <Link href={`/${locale}/build`}>
-            <Button size="sm">{t.startMenu}</Button>
-          </Link>
+          <Link href={`/${locale}/build`} className={buttonVariants({ size: "sm" })}>{t.startMenu}</Link>
         </div>
 
         <button
@@ -230,9 +229,7 @@ export function SiteHeader({
                       </Link>
                     )}
                   </div>
-                  <Link href={`/${locale}/build`} onClick={() => setOpen(false)} className="mt-2 block">
-                    <Button className="w-full shadow-[0_12px_30px_-14px_var(--accent)]">{t.startMenu}</Button>
-                  </Link>
+                  <Link href={`/${locale}/build`} onClick={() => setOpen(false)} className={cn(buttonVariants(), "mt-2 w-full shadow-[0_12px_30px_-14px_var(--accent)]")}>{t.startMenu}</Link>
                 </motion.div>
               </nav>
             </motion.div>
@@ -263,7 +260,13 @@ function LocaleSwitch({ locale, label }: { locale: "fa" | "en"; label: string })
   const router = useRouter();
   const nextLocale = locale === "fa" ? "en" : "fa";
   const nextPath = pathname.replace(/^\/(fa|en)(?=\/|$)/, `/${nextLocale}`);
-  const query = searchParams.toString();
+  const params = new URLSearchParams(searchParams.toString());
+  if (params.has("next")) {
+    const localized = localizedSafeNext(params.get("next"), nextLocale);
+    if (localized) params.set("next", localized);
+    else params.delete("next");
+  }
+  const query = params.toString();
   const href = `${nextPath}${query ? `?${query}` : ""}`;
   return (
     <Link

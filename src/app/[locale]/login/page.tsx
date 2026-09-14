@@ -7,6 +7,7 @@ import { auth } from "@/domains/auth/server";
 import { headers } from "next/headers";
 import { getRequestGeography } from "@/domains/geo/location";
 import { flags } from "@/config/env";
+import { localizedSafeNext } from "@/domains/i18n/safe-next";
 
 export const metadata: Metadata = {
   title: "ورود | Sign in",
@@ -32,7 +33,7 @@ export default async function LoginPage({
     const fallback = ["superadmin", "admin", "finance", "support", "editor"].includes(role)
       ? `/${locale}/admin`
       : role === "creator" ? `/${locale}/creator` : `/${locale}/dashboard`;
-    redirect(next && next.startsWith("/") ? next : fallback);
+    redirect(localizedSafeNext(next, locale) ?? fallback);
   }
 
   const googleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
@@ -54,7 +55,7 @@ export default async function LoginPage({
         <div className="mt-10">
           <LoginPanel
             locale={locale}
-            next={next ?? null}
+            next={localizedSafeNext(next, locale)}
             googleEnabled={googleEnabled}
             emailEnabled={flags.emailOtp}
             phoneEnabled={phoneEnabled}

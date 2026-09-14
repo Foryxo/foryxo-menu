@@ -19,6 +19,8 @@ export type SubmissionSnapshot = BuilderConfig & {
 };
 
 export type BriefAsset = {
+  mediaId: string;
+  downloadUrl: string;
   filename: string;
   kind: string;
   dishOrAssetName: string | null;

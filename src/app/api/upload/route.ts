@@ -19,7 +19,7 @@ import { ipRateLimit } from "@/domains/auth/security";
 import { audit } from "@/domains/audit/log";
 import { sanitizeNote } from "@/lib/utils";
 
-const ALLOWED_KINDS = new Set(["food_photo", "photos", "logo", "menu_doc", "spreadsheet", "other"]);
+const ALLOWED_KINDS = new Set(["food_photo", "photos", "logo", "menu_doc", "spreadsheet", "quote_attachment", "chat_attachment", "other"]);
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "0.0.0.0";

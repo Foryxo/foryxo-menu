@@ -6,6 +6,8 @@ import { getCreatorProjects } from "@/domains/creator/data";
 import { makeImplementationBrief } from "@/domains/builder/brief";
 import { Badge, Card, CardContent } from "@/components/ui/primitives";
 import { CopyBuildBrief } from "@/components/creator/copy-build-brief";
+import { getStorage } from "@/domains/storage/index";
+import { env } from "@/config/env";
 
 export default async function CreatorProjectsPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -13,6 +15,7 @@ export default async function CreatorProjectsPage({ params }: { params: Promise<
   const fa = l === "fa";
   await requireCreator();
   const { rows, files } = await getCreatorProjects();
+  const storage = getStorage();
 
   return (
     <div className="space-y-6">
@@ -27,6 +30,8 @@ export default async function CreatorProjectsPage({ params }: { params: Promise<
           const projectAssets = files
             .filter(({ link }) => link.projectId === project.id)
             .map(({ link, asset }) => ({
+              mediaId: asset.id,
+              downloadUrl: new URL(storage.publicUrl(asset.storageKey), env.APP_URL).toString(),
               filename: asset.filename,
               kind: link.kind,
               dishOrAssetName: asset.label,
@@ -80,7 +85,7 @@ export default async function CreatorProjectsPage({ params }: { params: Promise<
                   <div className="mt-5">
                     <h3 className="flex items-center gap-2 font-extrabold"><ImageIcon className="size-4" aria-hidden="true" />{fa ? "فایل‌ها و عکس‌های نام‌گذاری‌شده" : "Named files and food photos"}</h3>
                     <ul className="mt-3 grid gap-2 md:grid-cols-2">
-                      {projectAssets.map((asset, index) => <li key={`${asset.filename}-${index}`} className="rounded-xl border border-line p-3 text-sm"><p className="font-bold">{asset.dishOrAssetName || asset.filename}</p><p className="mt-1 text-xs text-muted" dir="ltr">{asset.kind} · {asset.filename}</p>{asset.customerInstructions ? <p className="mt-2 text-xs leading-5">{asset.customerInstructions}</p> : null}</li>)}
+                      {projectAssets.map((asset) => <li key={asset.mediaId} className="rounded-xl border border-line p-3 text-sm"><p className="font-bold">{asset.dishOrAssetName || asset.filename}</p><p className="mt-1 text-xs text-muted" dir="ltr">{asset.kind} · {asset.filename}</p>{asset.customerInstructions ? <p className="mt-2 text-xs leading-5">{asset.customerInstructions}</p> : null}<a href={asset.downloadUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-xs font-bold accent-text underline-offset-4 hover:underline">{fa ? "مشاهده / دریافت فایل" : "View / download file"}</a></li>)}
                     </ul>
                   </div>
                 ) : null}
