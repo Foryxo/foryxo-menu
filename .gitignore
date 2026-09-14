@@ -1,0 +1,16 @@
+node_modules
+.next
+test-results/
+playwright-report/
+*.tar
+*.tar.gz
+.freebuff/
+.data
+dist
+coverage
+.env
+.env.local
+.env.production
+*.tsbuildinfo
+.DS_Store
+*.log

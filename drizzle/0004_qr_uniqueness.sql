@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX "qr_menu_table_uq" ON "qr_codes" USING btree ("menu_id","table_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "table_branch_label_uq" ON "tables" USING btree ("branch_id","label");

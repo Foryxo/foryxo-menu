@@ -1,0 +1,380 @@
+@import "tailwindcss";
+
+@theme {
+  /* ---- Foryxo blue identity (site chrome, not client menus) ---- */
+  --color-brand-50: #eef4ff;
+  --color-brand-100: #d9e6ff;
+  --color-brand-200: #b7d0ff;
+  --color-brand-300: #8bb0ff;
+  --color-brand-400: #5b87fa;
+  --color-brand-500: #3563e9;
+  --color-brand-600: #2347c8;
+  --color-brand-700: #1d38a0;
+  --color-brand-800: #1c3179;
+  --color-brand-900: #1b2c5e;
+  --color-brand-950: #141d3d;
+
+  --color-ink-50: #f7f8fa;
+  --color-ink-100: #eceef2;
+  --color-ink-200: #d5dae3;
+  --color-ink-300: #b1bac9;
+  --color-ink-400: #8794aa;
+  --color-ink-500: #68758d;
+  --color-ink-600: #525d73;
+  --color-ink-700: #434b5c;
+  --color-ink-800: #3a4050;
+  --color-ink-900: #0e1117;
+  --color-ink-950: #090b10;
+
+  --font-sans: var(--font-foryxo-sans);
+  --font-fa: "Vazirmatn", "Segoe UI", Tahoma, sans-serif;
+
+  --radius-card: 1rem;
+  --radius-xl2: 1.25rem;
+
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.06), 0 1px 3px rgb(16 24 40 / 0.1);
+  --shadow-pop: 0 12px 32px -12px rgb(16 24 40 / 0.25);
+
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --animate-fade-up: fade-up 0.5s var(--ease-spring) both;
+  --animate-fade-in: fade-in 0.4s ease both;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-brand-float: brand-float 2.4s var(--ease-spring) infinite;
+  --animate-brand-ring: brand-ring 1.1s linear infinite;
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes shimmer {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
+  }
+  @keyframes brand-float {
+    0%, 100% { transform: translateY(0) rotate(-2deg) scale(0.98); }
+    50% { transform: translateY(-6px) rotate(2deg) scale(1.03); }
+  }
+  @keyframes brand-ring {
+    to { transform: rotate(360deg); }
+  }
+}
+
+/* ---------- Base ---------- */
+:root {
+  --font-foryxo-sans: "Inter", "Vazirmatn", ui-sans-serif, system-ui, sans-serif;
+  --bg: #fafbfd;
+  --bg-elevated: #ffffff;
+  --bg-subtle: #f1f3f8;
+  --fg: #0e1117;
+  --fg-muted: #525d73;
+  --line: #e3e7ef;
+  --accent: #2347c8;
+  --accent-fg: #ffffff;
+  --accent-soft: #e8eeff;
+}
+
+.dark {
+  --bg: #0b0e14;
+  --bg-elevated: #12161f;
+  --bg-subtle: #171c27;
+  --fg: #edf0f6;
+  --fg-muted: #97a1b5;
+  --line: #232a38;
+  --accent: #5b87fa;
+  --accent-fg: #0b0e14;
+  --accent-soft: #1a2338;
+}
+
+@layer base {
+  html {
+    background: var(--bg);
+    color-scheme: light;
+    interpolate-size: allow-keywords;
+    scroll-behavior: smooth;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-foryxo-sans);
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 420ms var(--ease-spring), color 260ms ease;
+  }
+  html[lang="fa"] body {
+    font-family: var(--font-fa);
+    --font-sans: var(--font-fa);
+  }
+  html[lang="en"] body {
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  }
+  ::selection {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+  /* Visible focus for a11y */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  :where(a, button, summary, [role="button"]) {
+    transition-property: color, background-color, border-color, opacity, box-shadow, transform, filter;
+    transition-duration: 220ms;
+    transition-timing-function: var(--ease-spring);
+  }
+
+  :where(input, textarea, select) {
+    transition: border-color 220ms ease, background-color 220ms ease, box-shadow 220ms ease;
+  }
+
+  :where(input, textarea, select):not(:disabled):hover {
+    border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+  }
+
+  :where(button, [role="button"], a[class*="rounded"]):not(:disabled):active {
+    transform: scale(0.975);
+  }
+}
+
+@layer utilities {
+  .surface {
+    background: var(--bg-elevated);
+    border: 1px solid var(--line);
+  }
+  .surface-subtle {
+    background: var(--bg-subtle);
+  }
+  .text-muted {
+    color: var(--fg-muted);
+  }
+  .border-line {
+    border-color: var(--line);
+  }
+  .bg-app {
+    background: var(--bg);
+  }
+  .bg-elevated {
+    background: var(--bg-elevated);
+  }
+  .bg-subtle {
+    background: var(--bg-subtle);
+  }
+  .text-fg {
+    color: var(--fg);
+  }
+  .accent-bg {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+  .accent-text {
+    color: var(--accent);
+  }
+  .accent-soft-bg {
+    background: var(--accent-soft);
+  }
+
+  /* Editorial headline sizing (fluid, RTL-safe) */
+  .display-1 {
+    font-size: clamp(2.25rem, 5.2vw, 4.25rem);
+    line-height: 1.12;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .display-2 {
+    font-size: clamp(1.75rem, 3.6vw, 2.75rem);
+    line-height: 1.18;
+    font-weight: 750;
+    letter-spacing: -0.015em;
+  }
+  .display-3 {
+    font-size: clamp(1.25rem, 2.4vw, 1.6rem);
+    line-height: 1.3;
+    font-weight: 700;
+  }
+  .lede {
+    font-size: clamp(1.05rem, 1.6vw, 1.25rem);
+    line-height: 1.65;
+    color: var(--fg-muted);
+  }
+
+  /* Skeleton shimmer */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--bg-subtle) 25%,
+      var(--line) 50%,
+      var(--bg-subtle) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+    border-radius: 0.5rem;
+  }
+  .brand-loader-logo { animation: brand-float 2.4s var(--ease-spring) infinite; }
+  .brand-loader-ring { animation: brand-ring 1.1s linear infinite; }
+  .nav-link-premium {
+    position: relative;
+    isolation: isolate;
+  }
+  .nav-link-premium::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0.75rem;
+    bottom: 0.25rem;
+    height: 2px;
+    border-radius: 999px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: center;
+    transition: transform 260ms var(--ease-spring);
+  }
+  .nav-link-premium:hover::after,
+  .nav-link-premium[aria-current="page"]::after { transform: scaleX(1); }
+  .interactive-lift { transition: transform 300ms var(--ease-spring), box-shadow 300ms var(--ease-spring), border-color 300ms ease; }
+  .interactive-lift:hover { transform: translateY(-5px); box-shadow: var(--shadow-pop); border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+  .interactive-lift:active { transform: translateY(-1px) scale(0.992); }
+  .motion-surface { transition: border-color 260ms ease, box-shadow 300ms var(--ease-spring), background-color 260ms ease, transform 300ms var(--ease-spring); }
+  .motion-surface:hover { border-color: color-mix(in srgb, var(--accent) 24%, var(--line)); box-shadow: 0 10px 28px -22px color-mix(in srgb, var(--accent) 55%, transparent); }
+  .scroll-reveal { opacity: 1; transform: none; }
+
+  details {
+    transition: border-color 260ms ease, box-shadow 300ms var(--ease-spring), background-color 260ms ease, transform 300ms var(--ease-spring);
+  }
+  details:hover {
+    border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+    transform: translateY(-2px);
+  }
+  details[open] {
+    border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+    box-shadow: 0 16px 36px -28px color-mix(in srgb, var(--accent) 65%, transparent);
+  }
+  details::details-content {
+    block-size: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: block-size 360ms var(--ease-spring), opacity 260ms ease, content-visibility 360ms allow-discrete;
+  }
+  details[open]::details-content {
+    block-size: auto;
+    opacity: 1;
+  }
+  .hero-swiper,
+  .hero-swiper * {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .hero-swiper img {
+    -webkit-user-drag: none;
+    user-drag: none;
+  }
+  .premium-grid {
+    background-image:
+      linear-gradient(color-mix(in srgb, var(--line) 45%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--line) 45%, transparent) 1px, transparent 1px);
+    background-size: 38px 38px;
+    mask-image: linear-gradient(to bottom, black, transparent 88%);
+  }
+  .aurora-card {
+    position: relative;
+    overflow: hidden;
+  }
+  .aurora-card::before {
+    content: "";
+    position: absolute;
+    inset: -45%;
+    background: conic-gradient(from 30deg, transparent 0 35%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 60% 100%);
+    animation: brand-ring 18s linear infinite;
+    pointer-events: none;
+  }
+  .aurora-card > * { position: relative; z-index: 1; }
+  .soft-pulse { animation: soft-pulse 3s ease-in-out infinite; }
+  @keyframes soft-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent); }
+    50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--accent) 10%, transparent); }
+  }
+
+  @keyframes section-reveal {
+    from { opacity: 0; transform: translateY(22px) scale(0.992); }
+    to { opacity: 1; transform: none; }
+  }
+
+  /* Menu canvas theming — every demo remaps these via its own theme tokens */
+  .menu-canvas {
+    background: var(--menu-bg, #fff);
+    color: var(--menu-fg, #111);
+  }
+  .menu-canvas .menu-muted {
+    color: var(--menu-muted, #666);
+  }
+  .menu-canvas .menu-accent {
+    color: var(--menu-accent, #111);
+  }
+  .menu-canvas .menu-card {
+    background: var(--menu-card, #fff);
+    border-color: var(--menu-line, #eee);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :where(button, [role="button"], a[class*="rounded"]):not(:disabled):hover {
+    filter: saturate(1.04);
+  }
+}
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .scroll-reveal {
+      animation: section-reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 4% cover 24%;
+    }
+  }
+}
+
+/* Reduced motion: disable nonessential animation globally */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Thin elegant scrollbars for desktop */
+@media (pointer: fine) {
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--line);
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+}
