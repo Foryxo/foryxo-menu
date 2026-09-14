@@ -11,6 +11,7 @@ import { renderEmail } from "@/domains/email/templates";
 import { deliverEmail } from "@/domains/email/queue";
 import { recordSecurityEvent, otpRateLimit } from "./security";
 import { normalizeEmail } from "@/domains/i18n/normalize";
+import { recordEmailOtpDeliveryFailure } from "./email-delivery-status";
 
 export const auth = betterAuth({
   appName: env.APP_NAME,
@@ -59,28 +60,32 @@ export const auth = betterAuth({
     emailOTP({
       otpLength: 6,
       expiresIn: 300, // 5 minutes
-      async sendVerificationOTP({ email, otp, type }) {
+      async sendVerificationOTP({ email, otp, type }, ctx) {
         if (type !== "sign-in") return;
-        const rate = await otpRateLimit(`email:${email}`);
-        if (!rate.allowed) {
-          throw new Error("RATE_LIMITED");
+        try {
+          const rate = await otpRateLimit(`email:${email}`);
+          if (!rate.allowed) throw new Error("RATE_LIMITED");
+          if (env.AUTH_DEV_OTP && !isProd) {
+            console.log(`[AUTH:dev] Email OTP for ${email}: ${otp}`);
+            return;
+          }
+          if (!flags.emailOtp) throw new Error("EMAIL_DELIVERY_UNAVAILABLE");
+          const html = renderEmail("otp", { otp }, "fa");
+          // Sign-in codes must be sent synchronously: a queued job is not proof of delivery.
+          await deliverEmail({
+            to: email,
+            subject: "کد ورود فوریکسو منو | Your Foryxo Menu code",
+            html,
+            text: `کد ورود شما: ${otp}\nYour code: ${otp}`,
+          });
+          await recordSecurityEvent({ type: "otp_sent", metadata: { channel: "email" } });
+        } catch (error) {
+          // Better Auth catches sender errors internally and otherwise returns success.
+          recordEmailOtpDeliveryFailure(error);
+          await ctx?.context.internalAdapter.deleteVerificationByIdentifier(`sign-in-otp-${email}`).catch(() => undefined);
+          await recordSecurityEvent({ type: "otp_send_failed", metadata: { channel: "email" } });
+          throw error;
         }
-        if (env.AUTH_DEV_OTP && !isProd) {
-          console.log(`[AUTH:dev] Email OTP for ${email}: ${otp}`);
-          return;
-        }
-        if (isProd && (env.EMAIL_PROVIDER !== "smtp" || !env.EMAIL_SMTP_HOST)) {
-          throw new Error("EMAIL_DELIVERY_UNAVAILABLE");
-        }
-        const html = renderEmail("otp", { otp }, "fa");
-        // Sign-in codes must be sent synchronously: a queued job is not proof of delivery.
-        await deliverEmail({
-          to: email,
-          subject: "کد ورود فوریکسو منو | Your Foryxo Menu code",
-          html,
-          text: `کد ورود شما: ${otp}\nYour code: ${otp}`,
-        });
-        await recordSecurityEvent({ type: "otp_sent", metadata: { channel: "email" } });
       },
     }),
   ],

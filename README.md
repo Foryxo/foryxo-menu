@@ -27,8 +27,16 @@ Set `DB_DRIVER=postgres` + `DATABASE_URL` for a real Postgres instance.
 | Business customer | `cafe@dev.local` | Email OTP — code printed to the server console |
 | Consumer | `guest@dev.local` | Email OTP — code printed to the server console |
 
-`AUTH_DEV_OTP=true` (default in dev) pins OTPs to the console and enables
-`100000–999999` codes. **Never enable in production.**
+`AUTH_DEV_OTP=true` (default in dev) prints random six-digit codes to the
+server console. Production ignores this shortcut and requires real delivery.
+
+### Production sign-in delivery
+
+The sign-in form only offers channels with complete server-side credentials.
+Cloudflare Email Routing forwards incoming mail; it does **not** send OTPs.
+For outbound email, [onboard `foryxo.com` for Cloudflare Email Sending](https://developers.cloudflare.com/email-service/get-started/send-emails/), then create an API token with **Email Sending: Edit** permission. Set `EMAIL_PROVIDER=smtp`, `EMAIL_SMTP_HOST=smtp.mx.cloudflare.net`, `EMAIL_SMTP_PORT=465`, `EMAIL_SMTP_USER=api_token`, `EMAIL_SMTP_PASS=<token>`, and `EMAIL_FROM="Foryxo Menu <no-reply@foryxo.com>"` in the production secret store. Never commit the token. A real inbox delivery test is required before enabling sign-in for customers.
+
+For Iranian SMS, provision a Kavenegar API key and a `foryxo-otp` verification template, then set `SMS_PROVIDER=kavenegar` and `SMS_KAVENEGAR_API_KEY`. The app checks both HTTP and Kavenegar application status; missing credentials do not fall back to console delivery in production. WhatsApp and Telegram sign-in are still unavailable without official provider/bot setup.
 
 ## Commands
 

@@ -18,6 +18,9 @@ let transporter: Transporter | null = null;
 
 function getTransporter(): Transporter | null {
   if (env.EMAIL_PROVIDER !== "smtp") return null;
+  if (!env.EMAIL_SMTP_HOST || !env.EMAIL_SMTP_USER || !env.EMAIL_SMTP_PASS) {
+    throw new Error("EMAIL_DELIVERY_UNAVAILABLE");
+  }
   if (!transporter) {
     transporter = nodemailer.createTransport({
       host: env.EMAIL_SMTP_HOST,
@@ -48,7 +51,7 @@ export async function deliverEmail(email: OutgoingEmail): Promise<void> {
     console.log(`[EMAIL:dev] → ${email.to} — ${email.subject}`);
     return;
   }
-  await tx.sendMail({
+  const result = await tx.sendMail({
     from: env.EMAIL_FROM,
     to: email.to,
     subject: email.subject,
@@ -56,6 +59,9 @@ export async function deliverEmail(email: OutgoingEmail): Promise<void> {
     text: email.text,
     replyTo: email.replyTo,
   });
+  if (!result.accepted?.some((address) => address.toLowerCase() === email.to.toLowerCase())) {
+    throw new Error("EMAIL_RECIPIENT_REJECTED");
+  }
 }
 
 /** Worker-side drain for the email queue (BullMQ processor calls this). */

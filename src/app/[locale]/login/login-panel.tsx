@@ -142,13 +142,10 @@ export function LoginPanel({
         });
         const data = await res.json();
         if (!res.ok) {
-          setError(
-            data.error === "invalid_phone"
-              ? locale === "fa"
-                ? "شماره موبایل معتبر نیست."
-                : "Invalid mobile number."
-              : L.error,
-          );
+          if (res.status === 429) setError(L.tooManyAttempts);
+          else if (data.error === "invalid_phone") {
+            setError(locale === "fa" ? "شماره موبایل معتبر نیست." : "Invalid mobile number.");
+          } else setError(L.error);
           return;
         }
         if (data.devCode) setDevCode(data.devCode);
@@ -219,7 +216,7 @@ export function LoginPanel({
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
             type="text"
-            inputMode={method === "email" ? "email" : "tel"}
+            inputMode={/^[+\d۰-۹٠-٩]/.test(identifier.trim()) ? "tel" : "email"}
             dir="ltr"
             placeholder={
               phoneEnabled

@@ -80,8 +80,10 @@ export const flags = {
   waiterCall: true,
   customDomains: true,
   googleOAuth: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
-  emailOtp: (env.AUTH_DEV_OTP && !isProd) || (env.EMAIL_PROVIDER === "smtp" && Boolean(env.EMAIL_SMTP_HOST)),
-  phoneOtp: Boolean(env.SMS_PROVIDER !== "console" || env.AUTH_DEV_OTP),
+  emailOtp: (env.AUTH_DEV_OTP && !isProd) || (env.EMAIL_PROVIDER === "smtp" && Boolean(env.EMAIL_SMTP_HOST && env.EMAIL_SMTP_USER && env.EMAIL_SMTP_PASS)),
+  phoneOtp: (env.AUTH_DEV_OTP && !isProd) ||
+    (env.SMS_PROVIDER === "kavenegar" && Boolean(env.SMS_KAVENEGAR_API_KEY)) ||
+    (env.SMS_PROVIDER === "generic" && Boolean(env.SMS_GENERIC_URL && env.SMS_GENERIC_KEY && (!isProd || env.SMS_GENERIC_URL.startsWith("https://")))),
 } as const;
 
 export type FlagKey = keyof typeof flags;

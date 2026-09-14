@@ -5,7 +5,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { createHash, randomInt } from "node:crypto";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc, gt, lt, ne, sql } from "drizzle-orm";
 import { getDb } from "@/domains/db/client";
 import { verification, user } from "@/domains/db/schema/index";
 import { getSmsProvider } from "@/domains/auth/sms";
@@ -60,30 +60,33 @@ export async function POST(req: NextRequest) {
   if (body.action === "send") {
     const destLimit = await otpRateLimit(`phone:${normalized}`);
     if (!destLimit.allowed) {
-      // Generic response to reduce enumeration; still throttled.
-      return NextResponse.json({ ok: true, throttled: true });
+      return NextResponse.json({ error: "rate_limited" }, {
+        status: 429,
+        headers: { "Retry-After": String(destLimit.retryAfterSec ?? 600) },
+      });
     }
 
-    // Dev convenience: deterministic code, never in prod.
-    const code =
-      env.AUTH_DEV_OTP && !isProd
-        ? String(randomInt(100000, 999999))
-        : String(randomInt(100000, 999999));
+    const code = String(randomInt(100000, 1_000_000));
+    const verificationId = crypto.randomUUID();
 
     await db.insert(verification).values({
-      id: crypto.randomUUID(),
+      id: verificationId,
       identifier: normalized,
       value: hashOtp(normalized, code),
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
       purpose: "otp",
     });
 
-    const sms = getSmsProvider();
-    const result = await sms.sendOtp(normalized, code);
+    const result = await Promise.resolve()
+      .then(() => getSmsProvider().sendOtp(normalized, code))
+      .catch(() => ({ ok: false }));
     if (!result.ok) {
+      await db.delete(verification).where(eq(verification.id, verificationId));
       await recordSecurityEvent({ type: "otp_send_failed", metadata: { phone: normalized.slice(-4) } });
       return NextResponse.json({ error: "sms_failed" }, { status: 502 });
     }
+    // Only the latest delivered code may be used.
+    await db.delete(verification).where(and(eq(verification.identifier, normalized), eq(verification.purpose, "otp"), ne(verification.id, verificationId)));
     await recordSecurityEvent({ type: "otp_sent", metadata: { channel: "sms", phone: normalized.slice(-4) } });
 
     return NextResponse.json({
@@ -97,34 +100,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "invalid_code" }, { status: 400 });
     }
 
-    // Attempt limiting per identifier: max 5 tries per code row.
-    const rows = await db
+    // Only the latest live code is accepted; prior sends cannot extend a login window.
+    const newest = (await db
       .select()
       .from(verification)
       .where(and(eq(verification.identifier, normalized), eq(verification.purpose, "otp")))
-      .limit(5);
+      .orderBy(desc(verification.createdAt))
+      .limit(1))[0];
 
     const now = Date.now();
-    const valid = rows.find(
-      (r) => r.expiresAt.getTime() > now && r.attempts < 5 && r.value === hashOtp(normalized, body.code!),
-    );
-
-    // Burn an attempt on the newest live row even on failure.
-    const newest = rows.filter((r) => r.expiresAt.getTime() > now).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
-    if (!valid && newest) {
+    if (!newest || newest.expiresAt.getTime() <= now || newest.attempts >= 5) {
+      return NextResponse.json({ error: "expired" }, { status: 401 });
+    }
+    if (newest.value !== hashOtp(normalized, body.code)) {
       await db
         .update(verification)
-        .set({ attempts: newest.attempts + 1 })
-        .where(eq(verification.id, newest.id));
+        .set({ attempts: sql`${verification.attempts} + 1` })
+        .where(and(eq(verification.id, newest.id), lt(verification.attempts, 5)));
       await recordSecurityEvent({ type: "otp_failed", metadata: { channel: "sms" } });
       return NextResponse.json({ error: "invalid_code" }, { status: 401 });
     }
-    if (!valid) {
-      return NextResponse.json({ error: "expired" }, { status: 401 });
-    }
-
-    // Success: consume all rows for this identifier.
-    await db.delete(verification).where(and(eq(verification.identifier, normalized), eq(verification.purpose, "otp")));
+    const consumed = await db.delete(verification)
+      .where(and(eq(verification.id, newest.id), eq(verification.value, newest.value), gt(verification.expiresAt, new Date()), lt(verification.attempts, 5)))
+      .returning({ id: verification.id });
+    if (consumed.length === 0) return NextResponse.json({ error: "invalid_code" }, { status: 401 });
 
     // Find or create user by phone.
     let dbUser = (await db.select().from(user).where(eq(user.phone, normalized)).limit(1))[0];
