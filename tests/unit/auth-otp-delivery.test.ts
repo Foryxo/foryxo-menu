@@ -37,16 +37,14 @@ describe("OTP delivery readiness", () => {
     log.mockRestore();
   });
 
-  it("requires a complete SMTP configuration before enabling email OTP", async () => {
+  it("requires a Resend key before enabling production email OTP", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("AUTH_DEV_OTP", "false");
-    vi.stubEnv("EMAIL_PROVIDER", "smtp");
-    vi.stubEnv("EMAIL_SMTP_HOST", "smtp.mx.cloudflare.net");
-    vi.stubEnv("EMAIL_SMTP_USER", "api_token");
-    vi.stubEnv("EMAIL_SMTP_PASS", "");
+    vi.stubEnv("EMAIL_PROVIDER", "resend");
+    vi.stubEnv("RESEND_API_KEY", "");
     vi.resetModules();
     expect((await import("../../src/config/env")).flags.emailOtp).toBe(false);
-    vi.stubEnv("EMAIL_SMTP_PASS", "test-token");
+    vi.stubEnv("RESEND_API_KEY", "test-key");
     vi.resetModules();
     expect((await import("../../src/config/env")).flags.emailOtp).toBe(true);
   });

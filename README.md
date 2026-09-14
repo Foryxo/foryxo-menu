@@ -34,7 +34,7 @@ server console. Production ignores this shortcut and requires real delivery.
 
 The sign-in form only offers channels with complete server-side credentials.
 Cloudflare Email Routing forwards incoming mail; it does **not** send OTPs.
-For outbound email, [onboard `foryxo.com` for Cloudflare Email Sending](https://developers.cloudflare.com/email-service/get-started/send-emails/), then create an API token with **Email Sending: Edit** permission. Set `EMAIL_PROVIDER=smtp`, `EMAIL_SMTP_HOST=smtp.mx.cloudflare.net`, `EMAIL_SMTP_PORT=465`, `EMAIL_SMTP_USER=api_token`, `EMAIL_SMTP_PASS=<token>`, and `EMAIL_FROM="Foryxo Menu <no-reply@foryxo.com>"` in the production secret store. Never commit the token. A real inbox delivery test is required before enabling sign-in for customers.
+For outbound email, [verify `foryxo.com` in Resend](https://resend.com/docs/dashboard/domains/introduction), add its required DNS records in Cloudflare, then create a sending API key. Set `EMAIL_PROVIDER=resend`, `RESEND_API_KEY` and `EMAIL_FROM="Foryxo <otp@foryxo.com>"` in the production server environment. Never commit the key. Resend accepts the message for delivery; a real inbox test is still required before enabling sign-in for customers. Cloudflare Email Routing remains separate and handles incoming mail only.
 
 For Iranian SMS, provision a Kavenegar API key and a `foryxo-otp` verification template, then set `SMS_PROVIDER=kavenegar` and `SMS_KAVENEGAR_API_KEY`. The app checks both HTTP and Kavenegar application status; missing credentials do not fall back to console delivery in production. WhatsApp and Telegram sign-in are still unavailable without official provider/bot setup.
 

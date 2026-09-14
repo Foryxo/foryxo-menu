@@ -8,9 +8,8 @@ playwright-report/
 .data
 dist
 coverage
-.env
-.env.local
-.env.production
+.env*
+!.env.example
 *.tsbuildinfo
 .DS_Store
 *.log

@@ -2,7 +2,6 @@
  * Email dispatch. queueEmail enqueues; deliverEmail performs actual sending.
  * When Redis/BullMQ is absent (dev), sends inline synchronously.
  */
-import nodemailer, { type Transporter } from "nodemailer";
 import { env, isProd } from "@/config/env";
 import { getRedis } from "@/domains/jobs/redis";
 
@@ -12,26 +11,6 @@ export interface OutgoingEmail {
   html: string;
   text?: string;
   replyTo?: string;
-}
-
-let transporter: Transporter | null = null;
-
-function getTransporter(): Transporter | null {
-  if (env.EMAIL_PROVIDER !== "smtp") return null;
-  if (!env.EMAIL_SMTP_HOST || !env.EMAIL_SMTP_USER || !env.EMAIL_SMTP_PASS) {
-    throw new Error("EMAIL_DELIVERY_UNAVAILABLE");
-  }
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      host: env.EMAIL_SMTP_HOST,
-      port: env.EMAIL_SMTP_PORT,
-      secure: env.EMAIL_SMTP_PORT === 465,
-      auth: env.EMAIL_SMTP_USER
-        ? { user: env.EMAIL_SMTP_USER, pass: env.EMAIL_SMTP_PASS }
-        : undefined,
-    });
-  }
-  return transporter;
 }
 
 export async function queueEmail(email: OutgoingEmail): Promise<void> {
@@ -45,22 +24,38 @@ export async function queueEmail(email: OutgoingEmail): Promise<void> {
 }
 
 export async function deliverEmail(email: OutgoingEmail): Promise<void> {
-  const tx = getTransporter();
-  if (!tx) {
+  if (env.EMAIL_PROVIDER === "console") {
     if (isProd) throw new Error("EMAIL_DELIVERY_UNAVAILABLE");
     console.log(`[EMAIL:dev] → ${email.to} — ${email.subject}`);
     return;
   }
-  const result = await tx.sendMail({
-    from: env.EMAIL_FROM,
-    to: email.to,
-    subject: email.subject,
-    html: email.html,
-    text: email.text,
-    replyTo: email.replyTo,
-  });
-  if (!result.accepted?.some((address) => address.toLowerCase() === email.to.toLowerCase())) {
-    throw new Error("EMAIL_RECIPIENT_REJECTED");
+  if (!env.RESEND_API_KEY) throw new Error("EMAIL_DELIVERY_UNAVAILABLE");
+
+  let response: Response;
+  try {
+    response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: env.EMAIL_FROM,
+        to: [email.to],
+        subject: email.subject,
+        html: email.html,
+        ...(email.text ? { text: email.text } : {}),
+        ...(email.replyTo ? { reply_to: email.replyTo } : {}),
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch {
+    throw new Error("EMAIL_DELIVERY_NETWORK_ERROR");
+  }
+  if (!response.ok) throw new Error(`EMAIL_DELIVERY_HTTP_${response.status}`);
+  const result = await response.json().catch(() => null) as { id?: unknown } | null;
+  if (typeof result?.id !== "string" || !result.id) {
+    throw new Error("EMAIL_DELIVERY_INVALID_RESPONSE");
   }
 }
 

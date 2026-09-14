@@ -21,7 +21,9 @@ STORAGE_PROVIDER=s3
 S3_ENDPOINT=https://<account>.r2.cloudflarestorage.com
 S3_BUCKET=foryxo-menu
 S3_ACCESS_KEY_ID= / S3_SECRET_ACCESS_KEY=
-EMAIL_PROVIDER=smtp + EMAIL_SMTP_*     # transactional sender
+EMAIL_PROVIDER=resend                    # transactional sender; verify foryxo.com in Resend first
+RESEND_API_KEY=                          # secret, set on the server only
+EMAIL_FROM="Foryxo <otp@foryxo.com>"
 SMS_PROVIDER=kavenegar + SMS_KAVENEGAR_API_KEY=   # or SMS_GENERIC_URL/KEY
 INDEXNOW_KEY=<random>
 SENTRY_DSN=                            # optional error tracking
