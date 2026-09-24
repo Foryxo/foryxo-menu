@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+export const dynamic = "force-static";
 import { SITE_URL } from "@/domains/seo/hreflang";
 import { getDb } from "@/domains/db/client";
 import { menus, blogPosts } from "@/domains/db/schema/index";
@@ -10,9 +11,20 @@ export const revalidate = 3600;
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticLastModified = new Date("2026-09-10T00:00:00.000Z");
   const staticPaths = [
-    "", "/demos", "/pricing", "/features", "/how-it-works", "/faq",
-    "/about", "/contact", "/blog", "/security", "/privacy", "/terms",
-    "/refund-policy", "/projects",
+    "",
+    "/demos",
+    "/pricing",
+    "/features",
+    "/how-it-works",
+    "/faq",
+    "/about",
+    "/contact",
+    "/blog",
+    "/security",
+    "/privacy",
+    "/terms",
+    "/refund-policy",
+    "/projects",
   ];
 
   const entries: MetadataRoute.Sitemap = [];
@@ -67,7 +79,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       });
     }
     const posts = await db
-      .select({ locale: blogPosts.locale, slug: blogPosts.slug, updatedAt: blogPosts.updatedAt })
+      .select({
+        locale: blogPosts.locale,
+        slug: blogPosts.slug,
+        updatedAt: blogPosts.updatedAt,
+      })
       .from(blogPosts)
       .where(eq(blogPosts.status, "published"));
     for (const p of posts) {

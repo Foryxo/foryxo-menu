@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import { headers } from "next/headers";
 import "@fontsource/vazirmatn/100.css";
 import "@fontsource/vazirmatn/400.css";
 import "@fontsource/vazirmatn/500.css";
@@ -25,8 +24,25 @@ export const metadata: Metadata = {
   creator: "Foryxo",
   publisher: "Foryxo",
   category: "technology",
-  keywords: ["منوی دیجیتال", "منوی آنلاین", "QR menu", "digital menu", "restaurant menu", "cafe menu"],
-  robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 } },
+  keywords: [
+    "منوی دیجیتال",
+    "منوی آنلاین",
+    "QR menu",
+    "digital menu",
+    "restaurant menu",
+    "cafe menu",
+  ],
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
   manifest: "/manifest.webmanifest",
 };
 
@@ -39,11 +55,9 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default async function RootLayout({ children }: { children: ReactNode }) {
-  const requestHeaders = await headers();
-  const locale = requestHeaders.get("x-foryxo-locale") === "en" ? "en" : "fa";
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang={locale} dir={locale === "fa" ? "rtl" : "ltr"} suppressHydrationWarning>
+    <html lang="fa" dir="rtl" suppressHydrationWarning>
       <head suppressHydrationWarning>
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>

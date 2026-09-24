@@ -3,6 +3,12 @@ import { notFound } from "next/navigation";
 import { isLocale, dir } from "@/domains/i18n/config";
 import { DocumentLocaleSync } from "@/components/document-locale-sync";
 
+export const dynamicParams = false;
+
+export function generateStaticParams() {
+  return [{ locale: "fa" }, { locale: "en" }];
+}
+
 /**
  * Locale segment layout. The root <html> is fa/rtl (default); for English we
  * wrap content in a dir container. html lang is set client-safe via effect
