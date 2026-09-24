@@ -1,8 +1,14 @@
 # Foryxo Menu
 
 > Foryxo Menu — منوی دیجیتال حرفه‌ای برای کافه‌ها و رستوران‌ها
-> Professional bilingual digital menus: browse 10 live demo designs, configure,
+> Professional bilingual digital menus: browse 10 menu designs, configure,
 > submit content, approve a quote, pay, and go live at `menu.foryxo.com/menus/{slug}/menu`.
+
+## Public project page
+
+[Project overview](https://foryxo.github.io/foryxo-menu/) is built separately from the Next.js application. GitHub Actions publishes only the four public files in `site/`; it does not publish the documentation directory or attempt to run the application on GitHub Pages. The application at `menu.foryxo.com` is temporarily unavailable while its origin server is unreachable.
+
+Build the overview with `node scripts/build-pages.mjs`. Deploying the full application requires a successful `npm run build`, a Node.js host, database access and its server-side configuration.
 
 ## Quick start (development)
 
