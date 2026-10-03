@@ -20,7 +20,9 @@ export async function PageShell({
   let isCreator = false;
   let isAdmin = false;
   let userName: string | null = null;
-  const isStaticPages = process.env.GITHUB_PAGES === "true";
+  const isStaticPages =
+    process.env.GITHUB_PAGES === "true" ||
+    process.env.STATIC_EXPORT === "true";
   if (!isStaticPages) {
     const { headers } = await import("next/headers");
     const requestHeaders = await headers();

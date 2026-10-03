@@ -6,11 +6,18 @@ import {
   readFile,
   rename,
   rm,
+  unlink,
   writeFile,
 } from "node:fs/promises";
 import path from "node:path";
 
 const root = path.resolve(import.meta.dirname, "..");
+const isRootExport =
+  process.env.STATIC_ROOT_EXPORT === "true" || process.argv.includes("--root");
+const exportBasePath = isRootExport ? "" : "/foryxo-menu";
+const exportSiteUrl = isRootExport
+  ? process.env.STATIC_SITE_URL || "https://foryxo-menu.pages.dev"
+  : "https://foryxo.github.io/foryxo-menu";
 const backupRoot = path.join(root, ".pages-build-backup");
 const disabledPaths = [
   "src/app/api",
@@ -71,6 +78,25 @@ async function walk(directory) {
   return files;
 }
 
+async function pruneOptimizedImageSources(outputRoot) {
+  const imageRoots = [
+    path.join(outputRoot, "images", "demos"),
+    path.join(outputRoot, "images", "generated"),
+  ];
+  let removed = 0;
+  for (const imageRoot of imageRoots) {
+    if (!(await exists(imageRoot))) continue;
+    for (const file of await walk(imageRoot)) {
+      if (path.extname(file).toLowerCase() !== ".png") continue;
+      const optimized = `${file.slice(0, -4)}.webp`;
+      if (!(await exists(optimized))) continue;
+      await unlink(file);
+      removed += 1;
+    }
+  }
+  console.log(`Removed ${removed} redundant PNG source files from the deploy artifact.`);
+}
+
 await rm(backupRoot, { recursive: true, force: true });
 await mkdir(backupRoot, { recursive: true });
 
@@ -82,10 +108,11 @@ try {
   await rm(path.join(root, "out"), { recursive: true, force: true });
   await run("npm", ["run", "build"], {
     ...process.env,
-    GITHUB_PAGES: "true",
-    NEXT_PUBLIC_BASE_PATH: "/foryxo-menu",
-    NEXT_PUBLIC_SITE_URL: "https://foryxo.github.io/foryxo-menu",
-    APP_URL: "https://foryxo.github.io/foryxo-menu",
+    GITHUB_PAGES: isRootExport ? "false" : "true",
+    STATIC_EXPORT: "true",
+    NEXT_PUBLIC_BASE_PATH: exportBasePath,
+    NEXT_PUBLIC_SITE_URL: exportSiteUrl,
+    APP_URL: exportSiteUrl,
     FORYXO_SKIP_BUILD_TYPECHECK: "1",
   });
 
@@ -102,21 +129,24 @@ try {
   for (const file of await walk(outputRoot)) {
     if (!textExtensions.has(path.extname(file))) continue;
     const input = await readFile(file, "utf8");
-    const output = input
-      .replaceAll('"/logo.png', '"/foryxo-menu/logo.png')
-      .replaceAll("'/logo.png", "'/foryxo-menu/logo.png")
-      .replaceAll('"/theme/', '"/foryxo-menu/theme/')
-      .replaceAll("'/theme/", "'/foryxo-menu/theme/")
-      .replaceAll('"/images/', '"/foryxo-menu/images/')
-      .replaceAll("'/images/", "'/foryxo-menu/images/")
-      .replaceAll('url("/images/', 'url("/foryxo-menu/images/')
-      .replaceAll("url('/images/", "url('/foryxo-menu/images/")
-      .replaceAll("url(/images/", "url(/foryxo-menu/images/")
-      .replaceAll('url("/fonts/', 'url("/foryxo-menu/fonts/')
-      .replaceAll("url('/fonts/", "url('/foryxo-menu/fonts/")
-      .replaceAll("url(/fonts/", "url(/foryxo-menu/fonts/");
+    const output = exportBasePath
+      ? input
+          .replaceAll('"/logo.png', `"${exportBasePath}/logo.png`)
+          .replaceAll("'/logo.png", `'${exportBasePath}/logo.png`)
+          .replaceAll('"/theme/', `"${exportBasePath}/theme/`)
+          .replaceAll("'/theme/", `'${exportBasePath}/theme/`)
+          .replaceAll('"/images/', `"${exportBasePath}/images/`)
+          .replaceAll("'/images/", `'${exportBasePath}/images/`)
+          .replaceAll('url("/images/', `url("${exportBasePath}/images/`)
+          .replaceAll("url('/images/", `url('${exportBasePath}/images/`)
+          .replaceAll("url(/images/", `url(${exportBasePath}/images/`)
+          .replaceAll('url("/fonts/', `url("${exportBasePath}/fonts/`)
+          .replaceAll("url('/fonts/", `url('${exportBasePath}/fonts/`)
+          .replaceAll("url(/fonts/", `url(${exportBasePath}/fonts/`)
+      : input;
     if (output !== input) await writeFile(file, output);
   }
+  await pruneOptimizedImageSources(outputRoot);
   await writeFile(path.join(outputRoot, ".nojekyll"), "");
 } finally {
   for (let index = disabled.length - 1; index >= 0; index -= 1) {

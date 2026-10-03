@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV === "development";
 const isGitHubPages = process.env.GITHUB_PAGES === "true";
+const isStaticExport =
+  isGitHubPages || process.env.STATIC_EXPORT === "true";
 const pagesBasePath = isGitHubPages ? "/foryxo-menu" : "";
 
 /**
@@ -45,11 +47,12 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  ...(isGitHubPages
+  ...(isStaticExport
     ? {
         output: "export" as const,
-        basePath: pagesBasePath,
-        assetPrefix: pagesBasePath,
+        ...(pagesBasePath
+          ? { basePath: pagesBasePath, assetPrefix: pagesBasePath }
+          : {}),
         trailingSlash: true,
       }
     : {}),
@@ -63,7 +66,7 @@ const nextConfig: NextConfig = {
   // bundled by Turbopack (URL/path shims break its filesystem layer).
   serverExternalPackages: ["@electric-sql/pglite"],
   images: {
-    unoptimized: isGitHubPages,
+    unoptimized: isStaticExport,
     formats: ["image/avif", "image/webp"],
     remotePatterns: [
       { protocol: "https", hostname: "**.r2.dev" },
@@ -71,7 +74,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "lh3.googleusercontent.com" },
     ],
   },
-  ...(!isGitHubPages
+  ...(!isStaticExport
     ? {
         async headers() {
           return [
