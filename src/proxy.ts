@@ -59,6 +59,8 @@ export async function proxy(req: NextRequest) {
     pathname.startsWith("/account") ||
     pathname.startsWith("/build") ||
     pathname.startsWith("/mock-gateway") ||
+    pathname === "/opengraph-image" ||
+    pathname === "/twitter-image" ||
     PUBLIC_FILE.test(pathname)
   ) {
     return NextResponse.next({ request: { headers: requestHeaders } });

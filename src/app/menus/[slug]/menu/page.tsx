@@ -37,6 +37,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       locale: "fa_IR",
       alternateLocale: "en_US",
       url: `https://menu.foryxo.com/menus/${slug}/menu`,
+      images: ["/opengraph-image"],
     },
   };
 }
@@ -100,7 +101,7 @@ export default async function MenuPage({ params, searchParams }: PageProps) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <noscript>
         <div style={{ padding: 16, fontFamily: "sans-serif" }}>
-          <h1>{model.title}</h1>
+          <p style={{ fontSize: 24, fontWeight: 800 }}>{model.title}</p>
           {model.categories.map((category) => (
             <section key={category.id}>
               <h2>{category.name}</h2>

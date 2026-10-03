@@ -36,20 +36,22 @@ export default async function QuotesPage({ params }: { params: Promise<{ locale:
                 </div>
                 <p className="mt-3 text-sm text-muted">{request.body}</p>
                 {estimate > 0 ? <p className="mt-2 text-xs font-bold accent-text">{fa ? "برآورد سازنده:" : "Builder estimate:"} {formatToman(estimate, l)}</p> : null}
-                <QuoteForm
-                  requestId={request.id}
-                  businessId={request.businessId}
-                  defaultAmount={estimate}
-                  labels={{
-                    issueQuote: fa ? "ارسال هزینه" : "Send charge",
-                    amount: fa ? "مبلغ" : "Amount",
-                    scope: fa ? "پیام و شرح کار" : "Message & scope",
-                    attachment: fa ? "پیوست تصویر یا PDF" : "Attach image or PDF",
-                    waiveFee: fa ? "رایگان" : "Waive",
-                    send: fa ? "ارسال برای مشتری" : "Send to client",
-                    error: fa ? "ارسال ناموفق بود" : "Could not send",
-                  }}
-                />
+                {["open", "quoted"].includes(request.status) ? (
+                  <QuoteForm
+                    requestId={request.id}
+                    businessId={request.businessId}
+                    defaultAmount={estimate}
+                    labels={{
+                      issueQuote: fa ? "ارسال هزینه" : "Send charge",
+                      amount: fa ? "مبلغ" : "Amount",
+                      scope: fa ? "پیام و شرح کار" : "Message & scope",
+                      attachment: fa ? "پیوست تصویر یا PDF" : "Attach image or PDF",
+                      waiveFee: fa ? "رایگان" : "Waive",
+                      send: fa ? "ارسال برای مشتری" : "Send to client",
+                      error: fa ? "ارسال ناموفق بود" : "Could not send",
+                    }}
+                  />
+                ) : null}
               </CardContent>
             </Card>
           );

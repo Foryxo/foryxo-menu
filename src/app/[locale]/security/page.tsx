@@ -11,7 +11,13 @@ export async function generateMetadata({
   const { locale } = await params;
   const l = isLocale(locale) ? locale : "fa";
   const t = getDictionary(l);
-  return { title: t.legal.security, description: t.legal.security, alternates: alternatesFor(l, "/security") };
+  return {
+    title: t.legal.security,
+    description: l === "fa"
+      ? "رویکرد فوریکسو منو به امنیت حساب‌ها، داده‌های مشتریان و دسترسی به منوها را بخوانید."
+      : "Learn how Foryxo Menu protects accounts, customer data, and access to digital menus.",
+    alternates: alternatesFor(l, "/security"),
+  };
 }
 
 export default async function SecurityPage({

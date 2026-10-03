@@ -61,6 +61,13 @@ function assertPositive(amount: number) {
 }
 
 class CreditService {
+  async hasHold(referenceId: string): Promise<boolean> {
+    const db = getDb();
+    const [entry] = await db.select({ id: ledgerEntries.id }).from(ledgerEntries)
+      .where(eq(ledgerEntries.idempotencyKey, `hold-${referenceId}`)).limit(1);
+    return Boolean(entry);
+  }
+
   async ensureAccount(businessId: string): Promise<string> {
     const db = getDb();
     const existing = (
@@ -180,6 +187,9 @@ class CreditService {
     assertPositive(opts.amount);
     const db = getDb();
     const accountId = await this.ensureAccount(opts.businessId);
+    const [existing] = await db.select({ id: ledgerEntries.id }).from(ledgerEntries)
+      .where(eq(ledgerEntries.idempotencyKey, `hold-${opts.referenceId}`)).limit(1);
+    if (existing) return;
     const balance = await this.getBalance(accountId);
     const held = await this.getHeld(accountId);
     if (balance < opts.amount) {
@@ -212,11 +222,13 @@ class CreditService {
   }): Promise<void> {
     assertPositive(opts.amount);
     const accountId = await this.ensureAccount(opts.businessId);
-    // Capture converts part of the hold into a final service_charge entry.
+    // A hold already reduced the available balance. Capturing releases that
+    // portion of the hold and records the final charge with zero net movement,
+    // avoiding the former double debit.
     await this.postEntry({
       accountId,
       amount: opts.amount,
-      direction: "debit",
+      direction: "credit",
       category: "capture",
       referenceType: "service_request",
       referenceId: opts.referenceId,
@@ -224,6 +236,21 @@ class CreditService {
       createdBy: opts.createdBy,
       idempotencyKey: `capture-${opts.referenceId}-${opts.amount}`,
     });
+    await this.postEntry({
+      accountId,
+      amount: opts.amount,
+      direction: "debit",
+      category: "service_charge",
+      referenceType: "service_request",
+      referenceId: opts.referenceId,
+      description: opts.description ?? "Charge for completed work",
+      createdBy: opts.createdBy,
+      idempotencyKey: `service-charge-${opts.referenceId}-${opts.amount}`,
+    });
+    await getDb().update(creditAccounts).set({
+      holdsCached: await this.getHeld(accountId),
+      updatedAt: new Date(),
+    }).where(eq(creditAccounts.id, accountId));
   }
 
   /** Release remaining hold back to available. */
@@ -246,6 +273,10 @@ class CreditService {
       createdBy: opts.createdBy,
       idempotencyKey: `release-${opts.referenceId}-${opts.amount}`,
     });
+    await getDb().update(creditAccounts).set({
+      holdsCached: await this.getHeld(accountId),
+      updatedAt: new Date(),
+    }).where(eq(creditAccounts.id, accountId));
   }
 
   async topupFromPayment(opts: {

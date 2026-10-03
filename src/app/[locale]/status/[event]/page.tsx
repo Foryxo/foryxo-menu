@@ -1,10 +1,27 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PageShell } from "@/components/site/page-shell";
 import { isLocale, getDictionary } from "@/domains/i18n/index";
 import { CheckCircle2, CircleX, Clock3, QrCode, Undo2, type LucideIcon } from "lucide-react";
 
-const EVENTS = ["payment-success", "payment-failed", "payment-cancelled", "rate-limited", "menu-unavailable", "account-suspended"] as const;
+const EVENTS = ["payment-success", "payment-failed", "payment-pending", "payment-cancelled", "rate-limited", "menu-unavailable", "account-suspended"] as const;
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string; event: string }> }): Promise<Metadata> {
+  const { locale, event } = await params;
+  if (!isLocale(locale) || !EVENTS.includes(event as (typeof EVENTS)[number])) notFound();
+  const t = getDictionary(locale);
+  const titles: Record<(typeof EVENTS)[number], string> = {
+    "payment-success": t.status.paymentSuccess,
+    "payment-failed": t.status.paymentFailed,
+    "payment-pending": locale === "fa" ? "در حال بررسی پرداخت" : "Payment verification pending",
+    "payment-cancelled": t.status.paymentCancelled,
+    "rate-limited": locale === "fa" ? "درخواست‌های بیش از حد" : "Too many requests",
+    "menu-unavailable": locale === "fa" ? "منو در دسترس نیست" : "Menu unavailable",
+    "account-suspended": locale === "fa" ? "حساب متوقف شده است" : "Account suspended",
+  };
+  return { title: titles[event as (typeof EVENTS)[number]], robots: { index: false, follow: false } };
+}
 
 export default async function StatusPage({
   params,
@@ -28,6 +45,12 @@ export default async function StatusPage({
       title: t.status.paymentFailed,
       body: fa ? "مبلغی از حساب شما کسر نشده یا به‌صورت خودکار آزاد می‌شود. می‌توانید دوباره تلاش کنید." : "No amount was taken, or it will be released automatically. You can retry.",
       tone: "text-red-600 dark:text-red-400",
+    },
+    "payment-pending": {
+      icon: Clock3,
+      title: fa ? "در حال بررسی پرداخت" : "Payment verification pending",
+      body: fa ? "پاسخ درگاه قطعی نبود. دوباره پرداخت نکنید؛ وضعیت تراکنش را از پنل بررسی کنید." : "The gateway response was not conclusive. Do not pay again; check the transaction status in your dashboard.",
+      tone: "text-amber-600 dark:text-amber-400",
     },
     "payment-cancelled": {
       icon: Undo2,

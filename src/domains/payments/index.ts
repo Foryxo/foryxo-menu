@@ -51,9 +51,9 @@ async function fulfillPaidPayment(payment: typeof payments.$inferSelect) {
     .select({ total: sum(payments.amount) })
     .from(payments)
     .where(and(eq(payments.invoiceId, payment.invoiceId), eq(payments.status, "paid")));
-  const paidTotal = Number(paid?.total ?? 0);
   const [invoice] = await db.select().from(invoices).where(eq(invoices.id, payment.invoiceId)).limit(1);
   if (!invoice) return;
+  const paidTotal = Math.min(invoice.total, Number(paid?.total ?? 0));
   await db
     .update(invoices)
     .set({ paidTotal, status: paidTotal >= invoice.total ? "paid" : "partially_paid" })
@@ -68,15 +68,34 @@ export interface StartPaymentInput {
   description: string;
   mobile?: string;
   email?: string;
+  locale?: "fa" | "en";
+  /** Stable for a single payable balance; prevents duplicate gateway attempts. */
+  idempotencyKey?: string;
+}
+
+function existingRedirectUrl(payment: typeof payments.$inferSelect): string | null {
+  if (!payment.providerRef) return null;
+  if (payment.provider === "zarinpal") {
+    const base = env.ZARINPAL_SANDBOX
+      ? "https://sandbox.zarinpal.com/pg/StartPay"
+      : "https://payment.zarinpal.com/pg/StartPay";
+    return `${base}/${payment.providerRef}`;
+  }
+  if (payment.provider === "mock" && !isProd) {
+    return `${env.APP_URL}/mock-gateway?authority=${encodeURIComponent(payment.providerRef)}&amount=${payment.amount}&paymentId=${encodeURIComponent(payment.id)}`;
+  }
+  return null;
 }
 
 export async function startPayment(input: StartPaymentInput) {
   const provider = getPaymentProvider();
   if (!provider) return { ok: false as const, error: "payment_provider_unavailable" };
   const db = getDb();
-  const idempotencyKey = `pay-${crypto.randomUUID()}`;
+  const idempotencyKey = input.idempotencyKey ?? `pay-${crypto.randomUUID()}`;
+  const locale = input.locale === "en" ? "en" : "fa";
+  const callbackUrl = `${env.APP_URL}/api/payments/callback?locale=${locale}`;
 
-  const [payment] = await db
+  let [payment] = await db
     .insert(payments)
     .values({
       id: crypto.randomUUID(),
@@ -87,9 +106,30 @@ export async function startPayment(input: StartPaymentInput) {
       purpose: input.purpose,
       status: "initiated",
       idempotencyKey,
-      callbackUrl: `${env.APP_URL}/api/payments/callback`,
+      callbackUrl,
     })
+    .onConflictDoNothing({ target: payments.idempotencyKey })
     .returning();
+
+  if (!payment) {
+    const [existing] = await db.select().from(payments).where(eq(payments.idempotencyKey, idempotencyKey)).limit(1);
+    if (!existing) return { ok: false as const, error: "payment_in_progress" };
+    if (["initiated", "redirect_pending", "verifying"].includes(existing.status)) {
+      const redirectUrl = existingRedirectUrl(existing);
+      return redirectUrl
+        ? { ok: true as const, paymentId: existing.id, redirectUrl }
+        : { ok: false as const, error: "payment_in_progress" };
+    }
+    if (existing.status === "paid") return { ok: false as const, error: "already_paid" };
+    const [reclaimed] = await db.update(payments).set({
+      status: "initiated",
+      provider: provider.name,
+      providerRef: null,
+      failureReason: null,
+    }).where(and(eq(payments.id, existing.id), eq(payments.status, existing.status))).returning();
+    if (!reclaimed) return { ok: false as const, error: "payment_in_progress" };
+    payment = reclaimed;
+  }
 
   await db.insert(paymentEvents).values({
     id: crypto.randomUUID(),
@@ -102,7 +142,7 @@ export async function startPayment(input: StartPaymentInput) {
     amount: input.amount,
     currency: "IRT",
     description: input.description,
-    callbackUrl: `${env.APP_URL}/api/payments/callback?paymentId=${payment.id}`,
+    callbackUrl: `${callbackUrl}&paymentId=${payment.id}`,
     mobile: input.mobile,
     email: input.email,
     idempotencyKey,
@@ -177,6 +217,19 @@ export async function verifyPaymentCallback(
   });
 
   if (!result.ok || result.status !== "paid") {
+    if (result.status === "unknown") {
+      await db
+        .update(payments)
+        .set({ status: "redirect_pending", failureReason: result.error ?? "verification_unknown" })
+        .where(eq(payments.id, paymentId));
+      await db.insert(paymentEvents).values({
+        id: crypto.randomUUID(),
+        paymentId,
+        type: "verify_unknown",
+        payload: { error: result.error },
+      });
+      return { ok: false, error: "verification_pending" };
+    }
     await db
       .update(payments)
       .set({ status: "failed", failureReason: result.error ?? "verify_failed" })

@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: l === "fa" ? "منوی دیجیتال حرفه‌ای برای کافه و رستوران" : "Professional digital menus for cafés & restaurants",
     description: t.home.heroSubtitle,
     alternates: alternatesFor(l, ""),
-    openGraph: { title: t.home.heroTitle, description: t.home.heroSubtitle, type: "website" },
+    openGraph: { title: t.home.heroTitle, description: t.home.heroSubtitle, type: "website", images: ["/opengraph-image"] },
   };
 }
 

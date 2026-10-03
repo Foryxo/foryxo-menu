@@ -64,6 +64,7 @@ export function BuilderWizard({ locale, presetDemo, labels: L }: { locale: Local
   const [submitted, setSubmitted] = useState<{ projectId: string } | null>(null);
   const [stepError, setStepError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"loading" | "saving" | "saved" | "error">("loading");
+  const [saveRetry, setSaveRetry] = useState(0);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveInFlight = useRef<Promise<void>>(Promise.resolve());
   const initialLoad = useRef(true);
@@ -114,7 +115,7 @@ export function BuilderWizard({ locale, presetDemo, labels: L }: { locale: Local
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-  }, [config, step, submitted]);
+  }, [config, step, submitted, saveRetry]);
 
   const patch = useCallback((p: Partial<BuilderConfig>) => setConfig((c) => ({ ...c, ...p })), []);
 
@@ -224,9 +225,14 @@ export function BuilderWizard({ locale, presetDemo, labels: L }: { locale: Local
           {saveState === "saving"
             ? (fa ? "در حال ذخیره…" : "Saving…")
             : saveState === "error"
-              ? (fa ? "ذخیره انجام نشد؛ دوباره تلاش می‌کنیم." : "Could not save; we will retry.")
+              ? (fa ? "ذخیره انجام نشد. اتصال را بررسی کنید و دوباره تلاش کنید." : "Could not save. Check your connection and try again.")
               : L.progressSaved}
         </p>
+        {saveState === "error" ? (
+          <button type="button" onClick={() => setSaveRetry((current) => current + 1)} className="mt-1 text-xs font-bold accent-text underline-offset-4 hover:underline">
+            {fa ? "تلاش دوباره برای ذخیره" : "Retry saving"}
+          </button>
+        ) : null}
         <p className="mt-2 text-xs font-semibold text-muted lg:hidden">{fa ? `زمان تقریبی اجرا: ${nd(delivery.minimumBusinessDays)} تا ${nd(delivery.maximumBusinessDays)} روز کاری، پس از دریافت محتوای کامل و تأیید پیش‌فاکتور` : `Estimated delivery: ${nd(delivery.minimumBusinessDays)}–${nd(delivery.maximumBusinessDays)} business days after complete content and quote approval`}</p>
       </div>
 

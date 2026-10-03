@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { auth } from "@/domains/auth/server";
 import { ipRateLimit } from "@/domains/auth/security";
-import { requireMyBusiness } from "@/domains/dashboard/data";
+import { requireFinanceBusiness } from "@/domains/dashboard/data";
 import { getDb } from "@/domains/db/client";
 import { invoices, serviceQuotes, serviceRequests } from "@/domains/db/schema/index";
 import { creditService } from "@/domains/wallet/ledger";
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   if (quote.status !== "pending") return NextResponse.json({ error: "quote_not_pending" }, { status: 409 });
   const [request] = await db.select().from(serviceRequests).where(eq(serviceRequests.id, quote.requestId)).limit(1);
   if (!request) return NextResponse.json({ error: "not_found" }, { status: 404 });
-  const membership = await requireMyBusiness(session.user.id, request.businessId);
+  const membership = await requireFinanceBusiness(session.user.id, request.businessId);
   if (!membership) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   if (parsed.data.action === "reject") {
@@ -60,47 +60,55 @@ export async function POST(req: NextRequest) {
 
   let paymentRequired = false;
   let invoiceId: string | null = null;
-  if (quote.amount > 0) {
-    const accountId = await creditService.ensureAccount(request.businessId);
-    const balance = await creditService.getBalance(accountId);
-    if (balance >= quote.amount) {
-      await creditService.placeHold({
-        businessId: request.businessId,
-        amount: quote.amount,
-        referenceType: "service_quote",
-        referenceId: quote.id,
-        createdBy: session.user.id,
-      });
-    } else {
-      paymentRequired = true;
-      const [existingInvoice] = await db.select().from(invoices).where(eq(invoices.quoteId, quote.id)).limit(1);
-      if (existingInvoice) {
-        invoiceId = existingInvoice.id;
-      } else {
-        const [createdInvoice] = await db.insert(invoices).values({
-          id: crypto.randomUUID(),
-          number: invoiceNumber(),
+  try {
+    if (quote.amount > 0) {
+      const accountId = await creditService.ensureAccount(request.businessId);
+      const balance = await creditService.getBalance(accountId);
+      const alreadyHeld = await creditService.hasHold(quote.id);
+      if (alreadyHeld || balance >= quote.amount) {
+        await creditService.placeHold({
           businessId: request.businessId,
-          quoteId: quote.id,
-          status: "sent",
-          subtotal: quote.amount,
-          total: quote.amount,
-          issuedAt: new Date(),
-          dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-          meta: { serviceRequestId: request.id },
-        }).returning();
-        invoiceId = createdInvoice.id;
+          amount: quote.amount,
+          referenceType: "service_quote",
+          referenceId: quote.id,
+          createdBy: session.user.id,
+        });
+      } else {
+        paymentRequired = true;
+        const [existingInvoice] = await db.select().from(invoices).where(eq(invoices.quoteId, quote.id)).limit(1);
+        if (existingInvoice) {
+          invoiceId = existingInvoice.id;
+        } else {
+          const [createdInvoice] = await db.insert(invoices).values({
+            id: crypto.randomUUID(),
+            number: invoiceNumber(),
+            businessId: request.businessId,
+            quoteId: quote.id,
+            status: "sent",
+            subtotal: quote.amount,
+            total: quote.amount,
+            issuedAt: new Date(),
+            dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+            meta: { serviceRequestId: request.id },
+          }).returning();
+          invoiceId = createdInvoice.id;
+        }
       }
     }
-  }
 
-  const [updated] = await db
-    .update(serviceQuotes)
-    .set({ status: "approved", approvedAt: new Date() })
-    .where(and(eq(serviceQuotes.id, quote.id), eq(serviceQuotes.status, "processing")))
-    .returning();
-  if (!updated) return NextResponse.json({ error: "quote_not_pending" }, { status: 409 });
-  await db.update(serviceRequests).set({ status: "quote_approved", updatedAt: new Date() }).where(eq(serviceRequests.id, request.id));
+    const [updated] = await db
+      .update(serviceQuotes)
+      .set({ status: "approved", approvedAt: new Date() })
+      .where(and(eq(serviceQuotes.id, quote.id), eq(serviceQuotes.status, "processing")))
+      .returning();
+    if (!updated) return NextResponse.json({ error: "quote_not_pending" }, { status: 409 });
+    await db.update(serviceRequests).set({ status: "quote_approved", updatedAt: new Date() }).where(eq(serviceRequests.id, request.id));
+  } catch {
+    // Holds and invoice creation are idempotent. Returning to pending gives the
+    // customer a safe retry path after transient database/provider failures.
+    await db.update(serviceQuotes).set({ status: "pending" }).where(and(eq(serviceQuotes.id, quote.id), eq(serviceQuotes.status, "processing"))).catch(() => undefined);
+    return NextResponse.json({ error: "quote_processing_failed" }, { status: 503 });
+  }
   await audit.log({
     actorUserId: session.user.id,
     action: "quote.approve",

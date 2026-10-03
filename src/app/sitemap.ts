@@ -4,6 +4,7 @@ import { getDb } from "@/domains/db/client";
 import { menus, blogPosts } from "@/domains/db/schema/index";
 import { eq, and } from "drizzle-orm";
 import { blogArticles } from "@content/blog";
+import { demos } from "@/content/demos/index";
 
 export const revalidate = 3600;
 
@@ -45,6 +46,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           languages: {
             fa: `${SITE_URL}/fa/blog/${article.slug}`,
             en: `${SITE_URL}/en/blog/${article.slug}`,
+          },
+        },
+      });
+    }
+  }
+
+  for (const demo of demos) {
+    for (const locale of ["fa", "en"] as const) {
+      entries.push({
+        url: `${SITE_URL}/${locale}/demos/${demo.id}`,
+        lastModified: staticLastModified,
+        changeFrequency: "monthly",
+        priority: 0.6,
+        alternates: {
+          languages: {
+            fa: `${SITE_URL}/fa/demos/${demo.id}`,
+            en: `${SITE_URL}/en/demos/${demo.id}`,
           },
         },
       });

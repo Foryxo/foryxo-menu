@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: req.headers });
   if (!session?.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const role = (session.user as { role?: string }).role ?? "";
-  if (!["superadmin", "creator", "admin", "support"].includes(role)) {
+  if (!["superadmin", "creator", "admin"].includes(role)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
@@ -36,6 +36,9 @@ export async function POST(req: NextRequest) {
   if (!body.success) return NextResponse.json({ error: "invalid_input" }, { status: 400 });
   if (body.data.waive && !["superadmin", "admin"].includes(role)) {
     return NextResponse.json({ error: "waiver_requires_admin" }, { status: 403 });
+  }
+  if (!body.data.waive && body.data.amount < 1) {
+    return NextResponse.json({ error: "amount_required" }, { status: 400 });
   }
 
   const db = getDb();
@@ -45,6 +48,9 @@ export async function POST(req: NextRequest) {
     .where(eq(serviceRequests.id, body.data.requestId))
     .limit(1);
   if (!request) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if (!["open", "quoted"].includes(request.status)) {
+    return NextResponse.json({ error: "request_not_quotable" }, { status: 409 });
+  }
 
   // The browser-provided URL, filename, and MIME are display hints only. A
   // quote must never attach another tenant's file or an arbitrary external URL.
@@ -53,24 +59,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid_attachment" }, { status: 400 });
   }
 
-  // Replace any pending quote with the new one (no charging happens here).
-  await db.delete(serviceQuotes).where(and(eq(serviceQuotes.requestId, request.id), eq(serviceQuotes.status, "pending")));
-  const [quote] = await db
-    .insert(serviceQuotes)
-    .values({
-      id: crypto.randomUUID(),
-      requestId: request.id,
-      amount: body.data.waive ? 0 : body.data.amount,
-      scope: body.data.scope,
-      attachments,
-      status: body.data.waive ? "waived" : "pending",
-    })
-    .returning();
-
-  await db
-    .update(serviceRequests)
-    .set({ status: "quoted", updatedAt: new Date() })
-    .where(eq(serviceRequests.id, request.id));
+  // Replacement and request status advance together, so a failed insert can
+  // never erase the customer's existing actionable quote.
+  const quote = await db.transaction(async (tx) => {
+    await tx.delete(serviceQuotes).where(and(eq(serviceQuotes.requestId, request.id), eq(serviceQuotes.status, "pending")));
+    const [created] = await tx
+      .insert(serviceQuotes)
+      .values({
+        id: crypto.randomUUID(),
+        requestId: request.id,
+        amount: body.data.waive ? 0 : body.data.amount,
+        scope: body.data.scope,
+        attachments,
+        status: body.data.waive ? "waived" : "pending",
+        approvedAt: body.data.waive ? new Date() : null,
+      })
+      .returning();
+    await tx
+      .update(serviceRequests)
+      .set({ status: body.data.waive ? "quote_approved" : "quoted", updatedAt: new Date() })
+      .where(eq(serviceRequests.id, request.id));
+    return created;
+  });
 
   await audit.log({
     actorUserId: session.user.id,

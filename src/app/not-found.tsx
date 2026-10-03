@@ -1,5 +1,8 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { BrandMark } from "@/components/brand/brand-mark";
+
+export const metadata: Metadata = { title: "404", robots: { index: false, follow: false } };
 
 export default function RootNotFound() {
   return (

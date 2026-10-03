@@ -6,7 +6,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { cookies } from "next/headers";
-import { and, desc, eq, isNull, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { getDb } from "@/domains/db/client";
 import {
   builderDrafts,
@@ -41,11 +41,13 @@ export async function POST(req: NextRequest) {
   // Load the draft (user-attached or anonymous via cookie).
   const store = await cookies();
   const anonId = store.get("foryxo_anon")?.value ?? null;
-  const ownDraft = (await db.select().from(builderDrafts).where(eq(builderDrafts.userId, userId)).limit(1))[0];
-  const anonymousDraft = !ownDraft && anonId
+  const ownDraft = (await db.select().from(builderDrafts).where(eq(builderDrafts.userId, userId)).orderBy(desc(builderDrafts.updatedAt)).limit(1))[0];
+  const anonymousDraft = anonId
     ? (await db.select().from(builderDrafts).where(and(eq(builderDrafts.anonId, anonId), isNull(builderDrafts.userId))).limit(1))[0]
     : undefined;
-  const draft = ownDraft ?? anonymousDraft;
+  const draft = [ownDraft, anonymousDraft]
+    .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
+    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())[0];
 
   if (!draft) {
     return NextResponse.json({ error: "no_draft" }, { status: 400 });
@@ -64,9 +66,13 @@ export async function POST(req: NextRequest) {
   }
 
   // Find or create the business for this user.
-  let biz = (
-    await db.select().from(businesses).where(eq(businesses.ownerUserId, userId)).limit(1)
-  )[0];
+  const ownedBusinesses = await db.select().from(businesses).where(eq(businesses.ownerUserId, userId));
+  const requestedName = (config.brandName ?? "").trim().toLocaleLowerCase();
+  const requestedNameEn = (config.brandNameEn ?? "").trim().toLocaleLowerCase();
+  let biz = ownedBusinesses.find((candidate) =>
+    candidate.name.trim().toLocaleLowerCase() === requestedName
+    || Boolean(requestedNameEn && candidate.nameEn?.trim().toLocaleLowerCase() === requestedNameEn),
+  );
 
   if (!biz) {
     const brandName = sanitizeNote(config.brandName ?? "My Business", 60) || "My Business";
@@ -101,12 +107,13 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Idempotency: one active project per business from the builder.
+  // Idempotency: reuse only an unfinished build. Delivered projects must not
+  // prevent a customer from ordering a redesign or another menu.
   const existingProject = (
     await db
       .select()
       .from(projects)
-      .where(and(eq(projects.businessId, biz.id), ne(projects.status, "cancelled")))
+      .where(and(eq(projects.businessId, biz.id), inArray(projects.status, ["submitted", "quoted", "approved", "in_build", "review", "revision"])))
       .orderBy(desc(projects.createdAt))
       .limit(1)
   )[0];
@@ -187,7 +194,8 @@ export async function POST(req: NextRequest) {
   });
 
   // Attach anonymous draft to user and mark consumed.
-  if (anonymousDraft) {
+  if (anonymousDraft && draft.id === anonymousDraft.id) {
+    await db.delete(builderDrafts).where(eq(builderDrafts.userId, userId));
     await db
       .update(builderDrafts)
       .set({ userId, anonId: null })

@@ -11,7 +11,13 @@ export async function generateMetadata({
   const { locale } = await params;
   const l = isLocale(locale) ? locale : "fa";
   const t = getDictionary(l);
-  return { title: t.legal.privacy, alternates: alternatesFor(l, "/privacy") };
+  return {
+    title: t.legal.privacy,
+    description: l === "fa"
+      ? "سیاست حریم خصوصی فوریکسو منو درباره داده‌های حساب، سفارش‌ها، کوکی‌های ضروری و حقوق کاربران."
+      : "Foryxo Menu's privacy policy covers account and order data, essential cookies, and your choices.",
+    alternates: alternatesFor(l, "/privacy"),
+  };
 }
 
 export default async function PrivacyPage({

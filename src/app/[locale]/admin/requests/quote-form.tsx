@@ -4,6 +4,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { Paperclip, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/primitives";
+import { toAsciiDigits } from "@/domains/i18n/normalize";
 
 interface Labels {
   issueQuote: string;
@@ -80,7 +81,7 @@ export function QuoteForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           requestId,
-          amount: waive ? 0 : Number(amount.replace(/\D/g, "")),
+          amount: waive ? 0 : Number(toAsciiDigits(amount).replace(/\D/g, "")),
           scope: scope.slice(0, 500) || (waive ? "complimentary" : "—"),
           attachments,
           waive,

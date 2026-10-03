@@ -13,6 +13,7 @@ import {
   getStorage,
   buildStorageKey,
   validateUpload,
+  sanitizeRasterUpload,
   UploadValidationError,
 } from "@/domains/storage/index";
 import { ipRateLimit } from "@/domains/auth/security";
@@ -20,6 +21,7 @@ import { audit } from "@/domains/audit/log";
 import { sanitizeNote } from "@/lib/utils";
 
 const ALLOWED_KINDS = new Set(["food_photo", "photos", "logo", "menu_doc", "spreadsheet", "quote_attachment", "chat_attachment", "other"]);
+const PROJECT_ASSET_KINDS = new Set(["food_photo", "photos", "logo", "menu_doc", "spreadsheet", "other"]);
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "0.0.0.0";
@@ -88,9 +90,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "dish_name_required" }, { status: 422 });
   }
 
+  let safeBuffer: Buffer = buf;
+  let width: number | null = null;
+  let height: number | null = null;
+  let scanStatus = "pending";
+  try {
+    const sanitized = await sanitizeRasterUpload(buf, mime);
+    if (sanitized) {
+      safeBuffer = sanitized.buffer;
+      width = sanitized.width;
+      height = sanitized.height;
+      scanStatus = "clean";
+    }
+  } catch (error) {
+    if (error instanceof UploadValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 415 });
+    }
+    throw error;
+  }
+
   const storage = getStorage();
   const key = buildStorageKey(businessId, file.name);
-  const stored = await storage.put(key, buf, mime);
+  const stored = await storage.put(key, safeBuffer, mime);
 
   const [row] = await db
     .insert(media)
@@ -105,8 +126,11 @@ export async function POST(req: NextRequest) {
       workflowStatus: "received",
       mime: stored.mime,
       size: stored.size,
+      width,
+      height,
       hash: stored.hash,
       storageKey: stored.key,
+      scanStatus,
     })
     .returning();
 
@@ -118,7 +142,7 @@ export async function POST(req: NextRequest) {
     .where(eq(projects.businessId, businessId))
     .orderBy(desc(projects.createdAt))
     .limit(1);
-  if (project) {
+  if (project && PROJECT_ASSET_KINDS.has(kind)) {
     await db.insert(projectFiles).values({
       id: crypto.randomUUID(),
       projectId: project.id,

@@ -27,6 +27,36 @@ export interface StoredObject {
 
 export class UploadValidationError extends Error {}
 
+export interface SanitizedRaster {
+  buffer: Buffer;
+  width: number | null;
+  height: number | null;
+}
+
+/**
+ * Decode and re-encode still raster uploads before they can become public.
+ * This rejects malformed/image-bomb payloads and strips embedded metadata.
+ * Animated GIFs and non-image documents remain pending for an external scan.
+ */
+export async function sanitizeRasterUpload(buf: Buffer, mime: string): Promise<SanitizedRaster | null> {
+  if (!["image/jpeg", "image/png", "image/webp", "image/avif"].includes(mime)) return null;
+  try {
+    const { default: sharp } = await import("sharp");
+    const source = sharp(buf, { limitInputPixels: 40_000_000, failOn: "warning" }).rotate();
+    const metadata = await source.metadata();
+    if (!metadata.width || !metadata.height) throw new Error("missing_dimensions");
+    let pipeline = source;
+    if (mime === "image/jpeg") pipeline = pipeline.jpeg({ quality: 92, mozjpeg: true });
+    if (mime === "image/png") pipeline = pipeline.png({ compressionLevel: 9 });
+    if (mime === "image/webp") pipeline = pipeline.webp({ quality: 90 });
+    if (mime === "image/avif") pipeline = pipeline.avif({ quality: 70 });
+    const output = await pipeline.toBuffer({ resolveWithObject: true });
+    return { buffer: output.data, width: output.info.width, height: output.info.height };
+  } catch {
+    throw new UploadValidationError("invalid_image");
+  }
+}
+
 /** Magic-byte sniffing (lightweight; full AV scanning is a pluggable job). */
 function sniffMime(buf: Buffer, fallback: string): string {
   if (buf.length > 3) {

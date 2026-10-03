@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { MenuReadModel, ReadModelProduct } from "./read-model";
-import { isCategoryActiveNow } from "./read-model";
+import { isCategoryActiveNow, isProductVisibleNow } from "./read-model";
 import { formatToman } from "@/domains/i18n/format";
 import { toPersianDigits } from "@/domains/i18n/normalize";
 import { sanitizeNote } from "@/lib/utils";
@@ -198,8 +198,9 @@ export function MenuApp({
   const visibleCategories = useMemo(
     () =>
       model.categories
-        .filter((c) => c.products.length > 0)
-        .filter((c) => isCategoryActiveNow(c, new Date(), model.business.timezone)),
+        .filter((c) => isCategoryActiveNow(c, new Date(), model.business.timezone))
+        .map((c) => ({ ...c, products: c.products.filter((p) => isProductVisibleNow(p)) }))
+        .filter((c) => c.products.length > 0),
     [model],
   );
 
@@ -209,7 +210,7 @@ export function MenuApp({
       s.replace(/ي/g, "ی").replace(/ك/g, "ک").replace(/\s+/g, " ").trim().toLowerCase();
     const q = norm(query);
     const out: { cat: string; product: ReadModelProduct }[] = [];
-    for (const c of model.categories) {
+    for (const c of visibleCategories) {
       for (const p of c.products) {
         const hay = norm(
           [p.name, p.nameEn, p.description, p.descriptionEn, c.name, c.nameEn].filter(Boolean).join(" "),
@@ -218,7 +219,7 @@ export function MenuApp({
       }
     }
     return out;
-  }, [query, model, isFa]);
+  }, [query, visibleCategories, isFa]);
 
   return (
     <div className="menu-canvas min-h-dvh" style={{ background: "var(--menu-bg)", color: "var(--menu-fg)" }}>
@@ -287,14 +288,14 @@ export function MenuApp({
               aria-label={t.search}
             />
             {query ? (
-              <button onClick={() => setQuery("")} aria-label="clear">
+              <button onClick={() => setQuery("")} aria-label={isFa ? "پاک کردن جستجو" : "Clear search"}>
                 <X className="size-4" style={{ color: "var(--menu-muted)" }} />
               </button>
             ) : null}
           </div>
         </div>
         {/* Category chips */}
-        <nav className="mx-auto max-w-2xl px-4 pb-2 overflow-x-auto" aria-label="categories">
+        <nav className="mx-auto max-w-2xl px-4 pb-2 overflow-x-auto" aria-label={isFa ? "دسته‌بندی‌ها" : "Categories"}>
           <div className="flex gap-2">
             {visibleCategories.map((c) => {
               const name = isFa ? c.name : c.nameEn ?? c.name;
@@ -748,11 +749,11 @@ function ProductSheet({
           {/* Quantity + add — shown only for menus with real ordering enabled. */}
           {orderingEnabled ? <div className="mt-6 flex items-center gap-3">
             <div className="flex items-center gap-1 rounded-xl p-1" style={{ background: "var(--menu-card)", border: "1px solid var(--menu-line)" }}>
-              <button type="button" className="p-2" onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="decrease">
+              <button type="button" className="p-2" onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label={isFa ? "کم کردن تعداد" : "Decrease quantity"}>
                 <Minus className="size-4" />
               </button>
               <span className="w-8 text-center font-bold">{nd(qty)}</span>
-              <button type="button" className="p-2" onClick={() => setQty((q) => Math.min(99, q + 1))} aria-label="increase">
+              <button type="button" className="p-2" onClick={() => setQty((q) => Math.min(99, q + 1))} aria-label={isFa ? "افزایش تعداد" : "Increase quantity"}>
                 <Plus className="size-4" />
               </button>
             </div>

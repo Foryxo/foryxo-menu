@@ -52,7 +52,7 @@ export default async function AdminRequestsPage({
                 <p className="mt-2 text-sm leading-6 text-muted">{request.body}</p>
                 <p className="mt-1 text-xs text-muted" dir="ltr">{request.number} · {request.category}</p>
 
-                {["open", "quoted"].includes(request.status) ? (
+                {role !== "support" && ["open", "quoted"].includes(request.status) ? (
                   <QuoteForm
                     requestId={request.id}
                     businessId={request.businessId}

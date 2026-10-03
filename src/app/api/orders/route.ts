@@ -5,7 +5,7 @@ import { audit } from "@/domains/audit/log";
 import { ipRateLimit } from "@/domains/auth/security";
 import { getDb } from "@/domains/db/client";
 import { branches, businessMembers, menuVersions, menus, notifications, orderItems, orders, tables } from "@/domains/db/schema/index";
-import type { MenuReadModel } from "@/domains/menu-engine/read-model";
+import { isCategoryActiveNow, isProductVisibleNow, type MenuReadModel } from "@/domains/menu-engine/read-model";
 import { calculateCart } from "@/domains/pricing/engine";
 import { randomId, sanitizeNote } from "@/lib/utils";
 
@@ -62,7 +62,9 @@ export async function POST(req: NextRequest) {
     tableLabel = table.label;
   }
 
-  const products = model.categories.flatMap((category) => category.products);
+  const products = model.categories
+    .filter((category) => isCategoryActiveNow(category, new Date(), model.business.timezone))
+    .flatMap((category) => category.products.filter((product) => isProductVisibleNow(product)));
   const cart = calculateCart(input.items.map((item) => ({ ...item, note: sanitizeNote(item.note, 200) })), (id) => products.find((product) => product.id === id));
   if (cart.lines.some((line) => line.errors.length) || cart.total <= 0) return NextResponse.json({ error: "cart_changed", lines: cart.lines.map((line) => ({ productId: line.productId, errors: line.errors })) }, { status: 409 });
   if (branch && cart.total < branch.minimumOrder) return NextResponse.json({ error: "minimum_order", minimum: branch.minimumOrder }, { status: 422 });

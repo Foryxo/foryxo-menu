@@ -6,7 +6,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { auth } from "@/domains/auth/server";
-import { requireMyBusiness } from "@/domains/dashboard/data";
+import { requireFinanceBusiness } from "@/domains/dashboard/data";
 import { getDb } from "@/domains/db/client";
 import { refunds, creditAccounts } from "@/domains/db/schema/index";
 import { eq } from "drizzle-orm";
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   const body = schema.safeParse(await req.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: "invalid_input" }, { status: 400 });
 
-  const membership = await requireMyBusiness(session.user.id, body.data.businessId);
+  const membership = await requireFinanceBusiness(session.user.id, body.data.businessId);
   if (!membership) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const db = getDb();

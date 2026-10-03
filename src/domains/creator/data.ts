@@ -1,4 +1,4 @@
-import { count, desc, eq, inArray, sum } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sum } from "drizzle-orm";
 import { getDb } from "@/domains/db/client";
 import { businesses, projects, projectFiles, serviceRequests, serviceRequestMessages, serviceQuotes, invoices, payments, user, menus, portfolioProjects, blogPosts, managedDemos, qrCodes, media, orders, orderItems, branches } from "@/domains/db/schema/index";
 
@@ -13,7 +13,7 @@ export async function getCreatorOverview() {
     db.select({ c: count() }).from(portfolioProjects).where(eq(portfolioProjects.status, "published")),
     db.select({ c: count() }).from(blogPosts).where(eq(blogPosts.status, "published")),
     db.select({ c: count() }).from(managedDemos).where(eq(managedDemos.status, "published")),
-    db.select({ total: sum(payments.amount) }).from(payments).where(eq(payments.status, "paid")),
+    db.select({ total: sum(payments.amount) }).from(payments).where(and(eq(payments.status, "paid"), eq(payments.purpose, "invoice"))),
     db.select({ total: sum(qrCodes.scanCount) }).from(qrCodes),
   ]);
   const recentRequests = await db.select({ request: serviceRequests, business: businesses }).from(serviceRequests).innerJoin(businesses, eq(serviceRequests.businessId, businesses.id)).orderBy(desc(serviceRequests.updatedAt)).limit(8);
@@ -52,7 +52,11 @@ export async function getCreatorProjects() {
         .select({ link: projectFiles, asset: media })
         .from(projectFiles)
         .innerJoin(media, eq(projectFiles.mediaId, media.id))
-        .where(inArray(projectFiles.projectId, projectIds))
+        .where(and(
+          inArray(projectFiles.projectId, projectIds),
+          inArray(projectFiles.kind, ["food_photo", "photos", "logo", "menu_doc", "spreadsheet", "other"]),
+          eq(media.status, "active"),
+        ))
         .orderBy(desc(projectFiles.createdAt))
     : [];
 
@@ -66,7 +70,7 @@ export async function getCreatorFoodAssets() {
     .from(media)
     .innerJoin(businesses, eq(media.businessId, businesses.id))
     .leftJoin(user, eq(media.uploadedBy, user.id))
-    .where(eq(media.kind, "food_photo"))
+    .where(and(eq(media.kind, "food_photo"), eq(media.status, "active")))
     .orderBy(desc(media.updatedAt))
     .limit(500);
 }

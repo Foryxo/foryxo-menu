@@ -11,7 +11,13 @@ export async function generateMetadata({
   const { locale } = await params;
   const l = isLocale(locale) ? locale : "fa";
   const t = getDictionary(l);
-  return { title: t.legal.refundPolicy, alternates: alternatesFor(l, "/refund-policy") };
+  return {
+    title: t.legal.refundPolicy,
+    description: l === "fa"
+      ? "شرایط و مراحل بررسی بازگشت وجه، اعتبار خدمات و لغو پروژه در فوریکسو منو."
+      : "Read Foryxo Menu's refund, service-credit, and project-cancellation policy.",
+    alternates: alternatesFor(l, "/refund-policy"),
+  };
 }
 
 export default async function RefundPolicyPage({

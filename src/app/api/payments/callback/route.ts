@@ -7,34 +7,38 @@ import { verifyPaymentCallback } from "@/domains/payments/index";
 import { ipRateLimit } from "@/domains/auth/security";
 
 export async function GET(req: NextRequest) {
+  const url = new URL(req.url);
+  const locale = url.searchParams.get("locale") === "en" ? "en" : "fa";
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "0.0.0.0";
   const rl = await ipRateLimit(ip, "pay-callback", 30, 60);
-  if (!rl.allowed) return NextResponse.redirect(new URL("/fa/status/rate-limited", req.url));
+  if (!rl.allowed) return NextResponse.redirect(new URL(`/${locale}/status/rate-limited`, req.url));
 
-  const url = new URL(req.url);
   const paymentId = url.searchParams.get("paymentId");
   const authority = url.searchParams.get("Authority") ?? url.searchParams.get("authority") ?? undefined;
   const status = url.searchParams.get("Status");
 
   if (!paymentId) {
-    return NextResponse.redirect(new URL("/fa/status/payment-failed", req.url));
+    return NextResponse.redirect(new URL(`/${locale}/status/payment-failed`, req.url));
   }
 
   // A gateway redirect is untrusted input. Show cancellation to the visitor,
   // but do not mutate the payment record without server-to-server verification.
   if (status === "NOK") {
-    return NextResponse.redirect(new URL(`/fa/status/payment-cancelled?paymentId=${paymentId}`, req.url));
+    return NextResponse.redirect(new URL(`/${locale}/status/payment-cancelled?paymentId=${paymentId}`, req.url));
   }
 
   const result = await verifyPaymentCallback(paymentId, { authority });
 
   if (result.ok) {
     return NextResponse.redirect(
-      new URL(`/fa/status/payment-success?paymentId=${paymentId}`, req.url),
+      new URL(`/${locale}/status/payment-success?paymentId=${paymentId}`, req.url),
     );
   }
+  if (result.error === "verification_pending") {
+    return NextResponse.redirect(new URL(`/${locale}/status/payment-pending?paymentId=${paymentId}`, req.url));
+  }
   return NextResponse.redirect(
-    new URL(`/fa/status/payment-failed?paymentId=${paymentId}`, req.url),
+    new URL(`/${locale}/status/payment-failed?paymentId=${paymentId}`, req.url),
   );
 }
 

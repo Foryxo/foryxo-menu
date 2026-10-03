@@ -11,7 +11,13 @@ export async function generateMetadata({
   const { locale } = await params;
   const l = isLocale(locale) ? locale : "fa";
   const t = getDictionary(l);
-  return { title: t.legal.terms, alternates: alternatesFor(l, "/terms") };
+  return {
+    title: t.legal.terms,
+    description: l === "fa"
+      ? "شرایط استفاده از خدمات طراحی، میزبانی، پشتیبانی و مدیریت منوی دیجیتال فوریکسو منو."
+      : "Terms for Foryxo Menu's digital-menu design, hosting, support, and management services.",
+    alternates: alternatesFor(l, "/terms"),
+  };
 }
 
 export default async function TermsPage({

@@ -4,18 +4,68 @@
  * remains the authenticated fallback.
  */
 import { NextResponse, type NextRequest } from "next/server";
+import { and, eq, or } from "drizzle-orm";
+import { auth } from "@/domains/auth/server";
+import { getDb } from "@/domains/db/client";
+import { businessMembers, businesses, media, menus, productImages, products } from "@/domains/db/schema/index";
 import { getStorage } from "@/domains/storage/index";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   ctx: { params: Promise<{ key: string[] }> },
 ) {
   const { key } = await ctx.params;
-  const storageKey = key.join("/");
+  const requestedKey = key.join("/");
   // Basic key validation: no traversal
-  if (storageKey.includes("..")) {
+  if (requestedKey.includes("..")) {
     return new NextResponse("bad request", { status: 400 });
   }
+  const db = getDb();
+  const [asset] = await db
+    .select()
+    .from(media)
+    .where(or(eq(media.id, requestedKey), eq(media.storageKey, requestedKey)))
+    .limit(1);
+  if (!asset || asset.status !== "active" || asset.scanStatus === "flagged") {
+    return new NextResponse("not found", { status: 404 });
+  }
+
+  // Only clean assets that are part of the current published menu (or its
+  // business logo) are public. Menu documents and conversation attachments
+  // always require tenant/staff authorization even when their URL leaks.
+  let isPublic = false;
+  if (asset.scanStatus === "clean") {
+    const [primaryImage, galleryImage, publicLogo] = await Promise.all([
+      db.select({ id: products.id }).from(products).innerJoin(menus, and(
+        eq(products.menuId, menus.id),
+        eq(products.versionId, menus.publishedVersionId),
+      )).where(and(eq(products.imageMediaId, asset.id), eq(products.isHidden, false), eq(menus.status, "published"))).limit(1),
+      db.select({ id: productImages.id }).from(productImages)
+        .innerJoin(products, eq(productImages.productId, products.id))
+        .innerJoin(menus, and(eq(products.menuId, menus.id), eq(products.versionId, menus.publishedVersionId)))
+        .where(and(eq(productImages.mediaId, asset.id), eq(products.isHidden, false), eq(menus.status, "published"))).limit(1),
+      db.select({ id: businesses.id }).from(businesses)
+        .innerJoin(menus, eq(menus.businessId, businesses.id))
+        .where(and(eq(businesses.logoMediaId, asset.id), eq(menus.status, "published"))).limit(1),
+    ]);
+    isPublic = Boolean(primaryImage[0] || galleryImage[0] || publicLogo[0]);
+  }
+
+  if (!isPublic) {
+    const session = await auth.api.getSession({ headers: req.headers }).catch(() => null);
+    if (!session?.user) return new NextResponse("not found", { status: 404 });
+    const role = (session.user as { role?: string }).role ?? "";
+    const isStaff = ["superadmin", "creator", "admin", "finance", "support", "editor"].includes(role);
+    const membership = asset.businessId
+      ? (await db.select({ id: businessMembers.id }).from(businessMembers).where(and(
+          eq(businessMembers.businessId, asset.businessId),
+          eq(businessMembers.userId, session.user.id),
+        )).limit(1))[0]
+      : null;
+    if (!isStaff && !membership) return new NextResponse("not found", { status: 404 });
+  }
+
+  const storageKey = asset.storageKey;
   const storage = getStorage();
   const buf = await storage.get(storageKey);
   if (!buf) return new NextResponse("not found", { status: 404 });
@@ -33,7 +83,7 @@ export async function GET(
       "Content-Type": mime,
       "X-Content-Type-Options": "nosniff",
       "Content-Security-Policy": "default-src 'none'",
-      "Cache-Control": "public, max-age=31536000, immutable",
+      "Cache-Control": isPublic ? "public, max-age=31536000, immutable" : "private, no-store",
     },
   });
 }

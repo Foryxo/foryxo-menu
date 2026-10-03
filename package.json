@@ -14,6 +14,7 @@
     "test:a11y": "playwright test tests/e2e/a11y.spec.ts",
     "seo:audit": "node scripts/seo-audit.mjs",
     "routes:audit": "node scripts/route-audit.mjs",
+    "links:audit": "node scripts/link-audit.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/db-migrate.ts",
     "db:seed": "tsx scripts/db-seed.ts",

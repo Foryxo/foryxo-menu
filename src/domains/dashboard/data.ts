@@ -38,6 +38,12 @@ export async function requireMyBusiness(userId: string, businessId?: string) {
   return found ?? null;
 }
 
+/** Money-moving actions are limited to people who control the business. */
+export async function requireFinanceBusiness(userId: string, businessId?: string) {
+  const membership = await requireMyBusiness(userId, businessId);
+  return membership && ["owner", "manager"].includes(membership.role) ? membership : null;
+}
+
 export async function getDashboardOverview(userId: string) {
   const db = getDb();
   const memberships = await getMyBusinesses(userId);

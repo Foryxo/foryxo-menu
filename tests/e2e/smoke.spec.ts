@@ -188,6 +188,18 @@ test("robots.txt and sitemap.xml respond", async ({ request }) => {
   expect(await sitemap.text()).toContain("<urlset");
 });
 
+test("public pages expose a working social image and status pages are noindex", async ({ request }) => {
+  const home = await request.get("/en");
+  const imageUrl = /<meta property="og:image" content="([^"]+)"/.exec(await home.text())?.[1];
+  expect(imageUrl).toBeTruthy();
+  const image = await request.get(imageUrl!);
+  expect(image.status()).toBe(200);
+  expect(image.headers()["content-type"]).toContain("image/png");
+
+  const status = await request.get("/en/status/payment-success");
+  expect(await status.text()).toMatch(/<meta name="robots" content="noindex, nofollow"/);
+});
+
 test("llms.txt responds with product description", async ({ request }) => {
   const res = await request.get("/llms.txt");
   expect(res.status()).toBe(200);

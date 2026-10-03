@@ -33,7 +33,7 @@ export default async function LocaleNotFound() {
 }
 
 export function generateMetadata() {
-  return { title: "404" };
+  return { title: "404", robots: { index: false, follow: false } };
 }
 
 export const dynamic = "force-dynamic";

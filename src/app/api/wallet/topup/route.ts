@@ -7,7 +7,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { auth } from "@/domains/auth/server";
 import { startPayment } from "@/domains/payments/index";
-import { requireMyBusiness } from "@/domains/dashboard/data";
+import { requireFinanceBusiness } from "@/domains/dashboard/data";
 import { ipRateLimit } from "@/domains/auth/security";
 
 const schema = z.object({
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   const body = schema.safeParse(await req.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: "invalid_input" }, { status: 400 });
 
-  const membership = await requireMyBusiness(session.user.id, body.data.businessId);
+  const membership = await requireFinanceBusiness(session.user.id, body.data.businessId);
   if (!membership) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const result = await startPayment({
@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
     amount: body.data.amount,
     description: "Foryxo service credit top-up",
     email: session.user.email,
+    locale: req.headers.get("referer")?.includes("/en/") ? "en" : "fa",
   });
 
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.error === "payment_provider_unavailable" ? 503 : 502 });

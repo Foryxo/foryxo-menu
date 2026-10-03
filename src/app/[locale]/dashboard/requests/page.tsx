@@ -71,7 +71,7 @@ export default async function RequestsPage({
           <p className="text-sm text-muted">{t.common.empty}</p>
         ) : (
           requests.map((r) => {
-            const quote = quotes.find((q) => q.requestId === r.id && q.status !== "waived");
+            const quote = quotes.find((q) => q.requestId === r.id);
             return (
               <Card key={r.id}>
                 <CardContent>
@@ -98,7 +98,7 @@ export default async function RequestsPage({
                       {Array.isArray(quote.attachments) && quote.attachments.length ? <div className="mt-2 flex flex-wrap gap-2">{(quote.attachments as {mediaId:string;url:string;filename:string}[]).map((item)=>{ const href = safeMediaUrl(item.url); return href ? <a key={item.mediaId} href={href} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-line bg-elevated px-3 py-2 text-xs font-bold">{item.filename}</a> : null; })}</div> : null}
                       <QuoteActions quoteId={quote.id} locale={l} />
                     </div>
-                  ) : quote ? <p className="mt-4 text-xs font-bold text-muted">{l === "fa" ? `وضعیت استعلام: ${quote.status}` : `Quote status: ${quote.status}`}</p> : null}
+                  ) : quote ? <div className="mt-4 rounded-xl bg-subtle p-4"><p className="text-xs font-bold text-muted">{l === "fa" ? `وضعیت استعلام: ${quote.status}` : `Quote status: ${quote.status}`}</p>{quote.status === "waived" ? <p className="mt-2 text-sm">{quote.scope}</p> : null}</div> : null}
                   <div className="mt-5 space-y-2 border-t border-line pt-4">
                     {messages.filter(({message}) => message.requestId === r.id && !message.isInternal).map(({message,author}) => { const mine = message.authorUserId === session.user.id; const attachments = (message.attachments ?? []) as {mediaId:string;url:string;filename:string}[]; return <div key={message.id} className={`max-w-[88%] rounded-xl p-3 ${mine ? "ms-auto accent-soft-bg" : "me-auto bg-subtle"}`}><p className="mb-1 text-[10px] font-bold text-muted">{mine ? (l === "fa" ? "شما" : "You") : author?.name || (l === "fa" ? "پشتیبانی" : "Support")}</p><p className="whitespace-pre-wrap text-sm">{message.body}</p>{attachments.length ? <div className="mt-2 flex flex-wrap gap-2">{attachments.map((item) => { const href = safeMediaUrl(item.url); return href ? <a key={item.mediaId} href={href} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-line bg-elevated px-3 py-2 text-xs font-bold">{item.filename}</a> : null; })}</div> : null}<time className="mt-1 block text-[10px] text-muted">{formatDateTime(message.createdAt, l)}</time></div>})}
                     <ChatComposer requestId={r.id} businessId={r.businessId} locale={l} />

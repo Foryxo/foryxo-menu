@@ -12,7 +12,13 @@ export async function generateMetadata({
   const { locale } = await params;
   const l = isLocale(locale) ? locale : "fa";
   const t = getDictionary(l);
-  return { title: t.nav.contact, description: t.nav.contact, alternates: alternatesFor(l, "/contact") };
+  return {
+    title: t.nav.contact,
+    description: l === "fa"
+      ? "برای طراحی منوی دیجیتال، پشتیبانی و پرسش درباره خدمات فوریکسو منو با ما در تماس باشید."
+      : "Contact Foryxo Menu about digital-menu design, project questions, and support.",
+    alternates: alternatesFor(l, "/contact"),
+  };
 }
 
 export default async function ContactPage({

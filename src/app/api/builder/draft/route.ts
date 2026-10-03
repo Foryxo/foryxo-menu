@@ -29,12 +29,13 @@ async function resolveDraftOwner(req: NextRequest): Promise<{ userId: string | n
 }
 
 async function findDraft(db: ReturnType<typeof getDb>, userId: string | null, anonId: string | null) {
-  if (userId) {
-    const own = (await db.select().from(builderDrafts).where(eq(builderDrafts.userId, userId)).limit(1))[0];
-    if (own) return own;
-  }
-  if (!anonId) return undefined;
-  return (await db.select().from(builderDrafts).where(and(eq(builderDrafts.anonId, anonId), isNull(builderDrafts.userId))).limit(1))[0];
+  const own = userId
+    ? (await db.select().from(builderDrafts).where(eq(builderDrafts.userId, userId)).orderBy(builderDrafts.updatedAt).limit(20))
+    : [];
+  const anonymous = anonId
+    ? (await db.select().from(builderDrafts).where(and(eq(builderDrafts.anonId, anonId), isNull(builderDrafts.userId))).orderBy(builderDrafts.updatedAt).limit(20))
+    : [];
+  return [...own, ...anonymous].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())[0];
 }
 
 export async function GET(req: NextRequest) {
@@ -113,6 +114,9 @@ export async function PATCH(req: NextRequest) {
   const step = Math.max(1, Math.min(10, Math.floor(body.step ?? existing?.step ?? 1)));
 
   if (existing) {
+    if (owner.userId && !existing.userId) {
+      await db.delete(builderDrafts).where(eq(builderDrafts.userId, owner.userId));
+    }
     await db
       .update(builderDrafts)
       .set({ step, config, estimate: estimate.initialTotal, updatedAt: new Date(), ...(owner.userId && !existing.userId ? { userId: owner.userId, anonId: null } : {}) })

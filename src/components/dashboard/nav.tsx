@@ -30,38 +30,42 @@ export function DashboardNav({
   if (mobile) {
     return (
       <nav className="flex gap-1 overflow-x-auto pb-1" aria-label={t.dashboard.overview}>
-        {items.map((i) => (
-          <Link
+        {items.map((i) => {
+          const active = pathname === i.href || (i.href !== `/${locale}/dashboard` && pathname.startsWith(i.href));
+          return <Link
             key={i.href}
             href={i.href}
+            aria-current={active ? "page" : undefined}
             className={cn(
               "shrink-0 rounded-lg px-3 py-2 text-xs font-bold",
-              pathname === i.href ? "accent-bg" : "text-muted hover:bg-subtle",
+              active ? "accent-bg" : "text-muted hover:bg-subtle",
             )}
           >
             {i.label}
-          </Link>
-        ))}
+          </Link>;
+        })}
       </nav>
     );
   }
 
   return (
     <nav className="mt-2 space-y-1" aria-label={t.dashboard.overview}>
-      {items.map((i) => (
-        <Link
+      {items.map((i) => {
+        const active = pathname === i.href || (i.href !== `/${locale}/dashboard` && pathname.startsWith(i.href));
+        return <Link
           key={i.href}
           href={i.href}
+          aria-current={active ? "page" : undefined}
           className={cn(
             "block rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors",
-            pathname === i.href || (i.href !== `/${locale}/dashboard` && pathname.startsWith(i.href))
+            active
               ? "accent-soft-bg accent-text"
               : "text-muted hover:bg-subtle hover:text-fg",
           )}
         >
           {i.label}
-        </Link>
-      ))}
+        </Link>;
+      })}
     </nav>
   );
 }
