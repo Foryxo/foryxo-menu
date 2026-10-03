@@ -6,9 +6,9 @@
 
 ## Public project page
 
-[Project overview](https://foryxo.github.io/foryxo-menu/) is built separately from the Next.js application. GitHub Actions publishes only the four public files in `site/`; it does not publish the documentation directory or attempt to run the application on GitHub Pages. The application at `menu.foryxo.com` is temporarily unavailable while its origin server is unreachable.
+[Cloudflare Pages](https://foryxo-menu.pages.dev/) serves the complete public site at the domain root. [GitHub Pages](https://foryxo.github.io/foryxo-menu/) publishes the same public experience under the repository path.
 
-Build the overview with `node scripts/build-pages.mjs`. Deploying the full application requires a successful `npm run build`, a Node.js host, database access and its server-side configuration.
+Build the GitHub Pages export with `npm run build:pages`, or the root-domain export with `npm run build:pages:root`. The public exports deliberately omit authenticated and server-only routes. Deploying sign-in, dashboards, uploads, and ordering requires the Node service described by `render.yaml`, persistent Postgres, and server-side provider credentials.
 
 ## Quick start (development)
 

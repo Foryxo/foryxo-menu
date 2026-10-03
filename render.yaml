@@ -1,0 +1,50 @@
+services:
+  - type: web
+    name: foryxo-menu-app
+    runtime: node
+    plan: free
+    region: frankfurt
+    repo: https://github.com/Foryxo/foryxo-menu.git
+    branch: main
+    buildCommand: npm ci && npm run db:migrate && npm run staff:bootstrap && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.0
+      - key: NODE_ENV
+        value: production
+      - key: APP_NAME
+        value: Foryxo Menu
+      - key: APP_URL
+        value: https://foryxo-menu-app.onrender.com
+      - key: AUTH_URL
+        value: https://foryxo-menu-app.onrender.com
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: AUTH_DEV_OTP
+        value: "false"
+      - key: DB_DRIVER
+        value: postgres
+      - key: DATABASE_POOL_MAX
+        value: "5"
+      - key: DATABASE_URL
+        sync: false
+      - key: FEATURE_FLAGS
+        value: demoMode
+      - key: EMAIL_PROVIDER
+        value: resend
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: Foryxo <otp@foryxo.com>
+      - key: SMS_PROVIDER
+        value: console
+      - key: STORAGE_PROVIDER
+        value: local
+      - key: ADMIN_EMAIL
+        value: foryxolabels@gmail.com
+      - key: CREATOR_EMAIL
+        value: yasaminsoraghi84@gmail.com
+      - key: OWNER_EMAIL
+        value: foryxolabels@gmail.com
