@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
+import { publicPath } from "@/lib/public-path";
 import { ChevronRight, Menu, X, Globe } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { buttonVariants } from "@/components/ui/button";
@@ -34,6 +35,7 @@ export function SiteHeader({
   isCreator,
   isAdmin,
   userName,
+  showLogin,
 }: {
   locale: "fa" | "en";
   strings: HeaderStrings;
@@ -41,6 +43,7 @@ export function SiteHeader({
   isCreator: boolean;
   isAdmin: boolean;
   userName: string | null;
+  showLogin: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -74,8 +77,15 @@ export function SiteHeader({
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-[color-mix(in_srgb,var(--bg)_86%,transparent)] backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4">
-        <Link href={`/${locale}`} className="group flex items-center gap-2 font-extrabold tracking-tight">
-          <BrandMark size={42} className="size-10 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" priority />
+        <Link
+          href={`/${locale}`}
+          className="group flex items-center gap-2 font-extrabold tracking-tight"
+        >
+          <BrandMark
+            size={42}
+            className="size-10 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110"
+            priority
+          />
           <span className="text-[15px]">{t.brand}</span>
         </Link>
 
@@ -99,16 +109,51 @@ export function SiteHeader({
           <LocaleSwitch locale={locale} label={t.langSwitchTo} />
           <ThemeSwitch label={t.themeLabel} locale={locale} />
           {isAuthenticated ? (
-            <Link href={isAdmin ? `/${locale}/admin` : isCreator ? `/${locale}/creator` : `/${locale}/dashboard`} className="group/profile inline-flex items-center gap-2 rounded-xl border border-line px-3 py-2 text-sm font-semibold transition-all hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-subtle">
-              <span className="grid size-6 place-items-center rounded-full accent-soft-bg text-xs font-black accent-text" aria-hidden="true">{(userName ?? "U").trim().slice(0, 1).toUpperCase()}</span>
-              <span className="max-w-28 truncate">{userName || (isAdmin ? (locale === "fa" ? "مدیریت" : "Admin") : isCreator ? (locale === "fa" ? "استودیوی من" : "My studio") : (locale === "fa" ? "پنل" : "Dashboard"))}</span>
+            <Link
+              href={
+                isAdmin
+                  ? `/${locale}/admin`
+                  : isCreator
+                    ? `/${locale}/creator`
+                    : `/${locale}/dashboard`
+              }
+              className="group/profile inline-flex items-center gap-2 rounded-xl border border-line px-3 py-2 text-sm font-semibold transition-all hover:-translate-y-0.5 hover:border-[var(--accent)] hover:bg-subtle"
+            >
+              <span
+                className="grid size-6 place-items-center rounded-full accent-soft-bg text-xs font-black accent-text"
+                aria-hidden="true"
+              >
+                {(userName ?? "U").trim().slice(0, 1).toUpperCase()}
+              </span>
+              <span className="max-w-28 truncate">
+                {userName ||
+                  (isAdmin
+                    ? locale === "fa"
+                      ? "مدیریت"
+                      : "Admin"
+                    : isCreator
+                      ? locale === "fa"
+                        ? "استودیوی من"
+                        : "My studio"
+                      : locale === "fa"
+                        ? "پنل"
+                        : "Dashboard")}
+              </span>
             </Link>
-          ) : (
-            <Link href={`/${locale}/login`} className="rounded-xl px-3 py-2 text-sm font-semibold text-muted hover:text-fg">
+          ) : showLogin ? (
+            <Link
+              href={`/${locale}/login`}
+              className="rounded-xl px-3 py-2 text-sm font-semibold text-muted hover:text-fg"
+            >
               {t.login}
             </Link>
-          )}
-          <Link href={`/${locale}/build`} className={buttonVariants({ size: "sm" })}>{t.startMenu}</Link>
+          ) : null}
+          <Link
+            href={`/${locale}/build`}
+            className={buttonVariants({ size: "sm" })}
+          >
+            {t.startMenu}
+          </Link>
         </div>
 
         <button
@@ -124,10 +169,21 @@ export function SiteHeader({
               <motion.span
                 key="close"
                 className="absolute grid place-items-center"
-                initial={reduceMotion ? false : { opacity: 0, rotate: -70, scale: 0.65 }}
+                initial={
+                  reduceMotion
+                    ? false
+                    : { opacity: 0, rotate: -70, scale: 0.65 }
+                }
                 animate={{ opacity: 1, rotate: 0, scale: 1 }}
-                exit={reduceMotion ? undefined : { opacity: 0, rotate: 70, scale: 0.65 }}
-                transition={{ duration: reduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
+                exit={
+                  reduceMotion
+                    ? undefined
+                    : { opacity: 0, rotate: 70, scale: 0.65 }
+                }
+                transition={{
+                  duration: reduceMotion ? 0 : 0.2,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
               >
                 <X className="size-5" aria-hidden="true" />
               </motion.span>
@@ -135,12 +191,24 @@ export function SiteHeader({
               <motion.span
                 key="menu"
                 className="absolute grid place-items-center"
-                initial={reduceMotion ? false : { opacity: 0, rotate: 70, scale: 0.65 }}
+                initial={
+                  reduceMotion ? false : { opacity: 0, rotate: 70, scale: 0.65 }
+                }
                 animate={{ opacity: 1, rotate: 0, scale: 1 }}
-                exit={reduceMotion ? undefined : { opacity: 0, rotate: -70, scale: 0.65 }}
-                transition={{ duration: reduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
+                exit={
+                  reduceMotion
+                    ? undefined
+                    : { opacity: 0, rotate: -70, scale: 0.65 }
+                }
+                transition={{
+                  duration: reduceMotion ? 0 : 0.2,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
               >
-                <Menu className="size-5 transition-transform duration-300 group-hover:scale-110" aria-hidden="true" />
+                <Menu
+                  className="size-5 transition-transform duration-300 group-hover:scale-110"
+                  aria-hidden="true"
+                />
               </motion.span>
             )}
           </AnimatePresence>
@@ -160,7 +228,9 @@ export function SiteHeader({
           >
             <motion.button
               type="button"
-              aria-label={locale === "fa" ? "بستن منوی موبایل" : "Close mobile menu"}
+              aria-label={
+                locale === "fa" ? "بستن منوی موبایل" : "Close mobile menu"
+              }
               className="absolute inset-0 size-full cursor-default bg-[color-mix(in_srgb,var(--bg)_48%,transparent)] backdrop-blur-sm"
               onClick={() => setOpen(false)}
               initial={reduceMotion ? false : { opacity: 0 }}
@@ -169,21 +239,40 @@ export function SiteHeader({
             />
             <motion.div
               className="absolute inset-x-3 top-3 max-h-[calc(100dvh-5.5rem)] overflow-y-auto rounded-[1.75rem] border border-line bg-elevated p-3 shadow-[0_24px_80px_-24px_rgb(0_0_0/0.45)]"
-              initial={reduceMotion ? false : { opacity: 0, y: -22, scale: 0.975 }}
+              initial={
+                reduceMotion ? false : { opacity: 0, y: -22, scale: 0.975 }
+              }
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={reduceMotion ? undefined : { opacity: 0, y: -14, scale: 0.985 }}
-              transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 34, mass: 0.8 }}
+              exit={
+                reduceMotion ? undefined : { opacity: 0, y: -14, scale: 0.985 }
+              }
+              transition={
+                reduceMotion
+                  ? { duration: 0 }
+                  : { type: "spring", stiffness: 420, damping: 34, mass: 0.8 }
+              }
             >
-              <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-70" aria-hidden="true" />
+              <div
+                className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-70"
+                aria-hidden="true"
+              />
               <nav className="flex flex-col gap-1" aria-label="Mobile">
                 {links.map((l, index) => {
                   const active = pathname.startsWith(l.href);
                   return (
                     <motion.div
                       key={l.href}
-                      initial={reduceMotion ? false : { opacity: 0, x: locale === "fa" ? 12 : -12 }}
+                      initial={
+                        reduceMotion
+                          ? false
+                          : { opacity: 0, x: locale === "fa" ? 12 : -12 }
+                      }
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: reduceMotion ? 0 : 0.035 * index, duration: reduceMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
+                      transition={{
+                        delay: reduceMotion ? 0 : 0.035 * index,
+                        duration: reduceMotion ? 0 : 0.28,
+                        ease: [0.22, 1, 0.36, 1],
+                      }}
                     >
                       <Link
                         href={l.href}
@@ -191,8 +280,12 @@ export function SiteHeader({
                         aria-current={active ? "page" : undefined}
                         className={cn(
                           "group/mobile flex min-h-12 items-center justify-between rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300 active:scale-[0.98]",
-                          locale === "fa" ? "hover:-translate-x-1" : "hover:translate-x-1",
-                          active ? "accent-soft-bg accent-text" : "text-muted hover:bg-subtle hover:text-fg",
+                          locale === "fa"
+                            ? "hover:-translate-x-1"
+                            : "hover:translate-x-1",
+                          active
+                            ? "accent-soft-bg accent-text"
+                            : "text-muted hover:bg-subtle hover:text-fg",
                         )}
                       >
                         <span>{l.label}</span>
@@ -206,20 +299,40 @@ export function SiteHeader({
                   className="mt-3 border-t border-line pt-3"
                   initial={reduceMotion ? false : { opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: reduceMotion ? 0 : 0.2, duration: reduceMotion ? 0 : 0.3 }}
+                  transition={{
+                    delay: reduceMotion ? 0 : 0.2,
+                    duration: reduceMotion ? 0 : 0.3,
+                  }}
                 >
                   <div className="flex items-center gap-2">
                     <LocaleSwitch locale={locale} label={t.langSwitchTo} />
                     <ThemeSwitch label={t.themeLabel} locale={locale} />
                     {isAuthenticated ? (
                       <Link
-                        href={isAdmin ? `/${locale}/admin` : isCreator ? `/${locale}/creator` : `/${locale}/dashboard`}
+                        href={
+                          isAdmin
+                            ? `/${locale}/admin`
+                            : isCreator
+                              ? `/${locale}/creator`
+                              : `/${locale}/dashboard`
+                        }
                         onClick={() => setOpen(false)}
                         className="flex min-h-11 flex-1 items-center justify-center rounded-xl border border-line px-4 text-center text-sm font-semibold transition-all hover:border-[var(--accent)] hover:bg-subtle active:scale-[0.98]"
                       >
-                        {userName || (isAdmin ? (locale === "fa" ? "مدیریت" : "Admin") : isCreator ? (locale === "fa" ? "استودیو" : "Studio") : (locale === "fa" ? "پنل" : "Dashboard"))}
+                        {userName ||
+                          (isAdmin
+                            ? locale === "fa"
+                              ? "مدیریت"
+                              : "Admin"
+                            : isCreator
+                              ? locale === "fa"
+                                ? "استودیو"
+                                : "Studio"
+                              : locale === "fa"
+                                ? "پنل"
+                                : "Dashboard")}
                       </Link>
-                    ) : (
+                    ) : showLogin ? (
                       <Link
                         href={`/${locale}/login`}
                         onClick={() => setOpen(false)}
@@ -227,9 +340,18 @@ export function SiteHeader({
                       >
                         {t.login}
                       </Link>
-                    )}
+                    ) : null}
                   </div>
-                  <Link href={`/${locale}/build`} onClick={() => setOpen(false)} className={cn(buttonVariants(), "mt-2 w-full shadow-[0_12px_30px_-14px_var(--accent)]")}>{t.startMenu}</Link>
+                  <Link
+                    href={`/${locale}/build`}
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      buttonVariants(),
+                      "mt-2 w-full shadow-[0_12px_30px_-14px_var(--accent)]",
+                    )}
+                  >
+                    {t.startMenu}
+                  </Link>
                 </motion.div>
               </nav>
             </motion.div>
@@ -254,7 +376,13 @@ function ArrowMark({ rtl }: { rtl: boolean }) {
   );
 }
 
-function LocaleSwitch({ locale, label }: { locale: "fa" | "en"; label: string }) {
+function LocaleSwitch({
+  locale,
+  label,
+}: {
+  locale: "fa" | "en";
+  label: string;
+}) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -285,13 +413,18 @@ function LocaleSwitch({ locale, label }: { locale: "fa" | "en"; label: string })
   );
 }
 
-function ThemeSwitch({ label, locale }: { label: string; locale: "fa" | "en" }) {
+function ThemeSwitch({
+  label,
+  locale,
+}: {
+  label: string;
+  locale: "fa" | "en";
+}) {
   const { theme, setTheme } = useTheme();
   const isDark = theme === "dark";
   const next = isDark ? "light" : "dark";
-  const stateLabel = locale === "fa"
-    ? isDark ? "تیره" : "روشن"
-    : isDark ? "Dark" : "Light";
+  const stateLabel =
+    locale === "fa" ? (isDark ? "تیره" : "روشن") : isDark ? "Dark" : "Light";
   return (
     <button
       type="button"
@@ -300,8 +433,22 @@ function ThemeSwitch({ label, locale }: { label: string; locale: "fa" | "en" }) 
       title={`${label}: ${stateLabel}`}
       className="theme-orbit group relative grid size-10 place-items-center overflow-hidden rounded-full border border-line bg-elevated text-muted transition-all hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-[0_8px_24px_color-mix(in_srgb,var(--accent)_20%,transparent)]"
     >
-      <Image src="/theme/sun.webp" alt="" width={22} height={22} aria-hidden="true" className={`absolute size-[22px] transition-all duration-500 ${isDark ? "translate-y-8 rotate-90 opacity-0" : "translate-y-0 rotate-0 opacity-100"}`} />
-      <Image src="/theme/moon.webp" alt="" width={22} height={22} aria-hidden="true" className={`absolute size-[22px] transition-all duration-500 ${isDark ? "translate-y-0 rotate-0 opacity-100" : "-translate-y-8 -rotate-90 opacity-0"}`} />
+      <Image
+        src={publicPath("/theme/sun.webp")}
+        alt=""
+        width={22}
+        height={22}
+        aria-hidden="true"
+        className={`absolute size-[22px] transition-all duration-500 ${isDark ? "translate-y-8 rotate-90 opacity-0" : "translate-y-0 rotate-0 opacity-100"}`}
+      />
+      <Image
+        src={publicPath("/theme/moon.webp")}
+        alt=""
+        width={22}
+        height={22}
+        aria-hidden="true"
+        className={`absolute size-[22px] transition-all duration-500 ${isDark ? "translate-y-0 rotate-0 opacity-100" : "-translate-y-8 -rotate-90 opacity-0"}`}
+      />
     </button>
   );
 }

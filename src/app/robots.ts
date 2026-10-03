@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/domains/seo/hreflang";
+export const dynamic = "force-static";
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -21,12 +22,6 @@ export default function robots(): MetadataRoute.Robots {
           "/*/login",
           "/*/register",
         ],
-      },
-      // AI crawlers: configurable policy — allow factual public content by default.
-      {
-        userAgent: ["GPTBot", "ClaudeBot", "PerplexityBot"],
-        allow: ["/fa", "/en", "/menus"],
-        disallow: ["/admin", "/dashboard", "/creator", "/account", "/api", "/*/admin", "/*/dashboard", "/*/creator"],
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,

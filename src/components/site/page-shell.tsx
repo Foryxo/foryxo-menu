@@ -20,18 +20,23 @@ export async function PageShell({
   let isCreator = false;
   let isAdmin = false;
   let userName: string | null = null;
-  const { headers } = await import("next/headers");
-  const requestHeaders = await headers();
-  try {
-    const { auth } = await import("@/domains/auth/server");
-    const session = await auth.api.getSession({ headers: requestHeaders });
-    isAuthenticated = Boolean(session?.user);
-    userName = session?.user?.name || session?.user?.email || null;
-    const role = (session?.user as { role?: string } | undefined)?.role;
-    isAdmin = role === "superadmin" || ["admin", "finance", "support", "editor"].includes(role ?? "");
-    isCreator = role === "creator";
-  } catch {
-    isAuthenticated = false;
+  const isStaticPages = process.env.GITHUB_PAGES === "true";
+  if (!isStaticPages) {
+    const { headers } = await import("next/headers");
+    const requestHeaders = await headers();
+    try {
+      const { auth } = await import("@/domains/auth/server");
+      const session = await auth.api.getSession({ headers: requestHeaders });
+      isAuthenticated = Boolean(session?.user);
+      userName = session?.user?.name || session?.user?.email || null;
+      const role = (session?.user as { role?: string } | undefined)?.role;
+      isAdmin =
+        role === "superadmin" ||
+        ["admin", "finance", "support", "editor"].includes(role ?? "");
+      isCreator = role === "creator";
+    } catch {
+      isAuthenticated = false;
+    }
   }
 
   return (
@@ -42,6 +47,7 @@ export async function PageShell({
         isCreator={isCreator}
         isAdmin={isAdmin}
         userName={userName}
+        showLogin={!isStaticPages}
         strings={{
           brand: t.common.brand,
           demos: t.nav.demos,

@@ -7,6 +7,7 @@ playwright-report/
 .freebuff/
 .data
 dist
+out/
 coverage
 .env*
 !.env.example

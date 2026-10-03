@@ -11,6 +11,7 @@ import { formatToman } from "@/domains/i18n/format";
 import { toPersianDigits } from "@/domains/i18n/normalize";
 import type { Locale } from "@/domains/i18n/config";
 import { ensureTextContrast, readableOn } from "@/lib/color-contrast";
+import { publicPath } from "@/lib/public-path";
 
 export function DemoPhone({
   demo,
@@ -72,7 +73,7 @@ export function DemoPhone({
             style={{ background: theme.card, border: `1px solid ${theme.line}`, borderRadius: theme.radius }}
           >
             <Image
-              src={p.imageThumbnailUrl ?? p.imageUrl ?? `/images/demos/${demo.id}/${cat.slug}/${p.slug}-480.webp`}
+              src={publicPath(p.imageThumbnailUrl ?? p.imageUrl ?? `/images/demos/${demo.id}/${cat.slug}/${p.slug}-480.webp`)}
               alt=""
               width={28}
               height={28}
