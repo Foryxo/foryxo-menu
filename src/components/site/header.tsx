@@ -12,6 +12,7 @@ import { useTheme } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/brand/brand-mark";
 import { localizedSafeNext } from "@/domains/i18n/safe-next";
+import { accountUrl } from "@/lib/account-url";
 
 export interface HeaderStrings {
   brand: string;
@@ -73,6 +74,8 @@ export function SiteHeader({
     { href: `/${locale}/blog`, label: t.blog },
     { href: `/${locale}/projects`, label: t.projects },
   ];
+  const loginHref = accountUrl(`/${locale}/login`);
+  const buildHref = accountUrl(`/${locale}/build`);
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-[color-mix(in_srgb,var(--bg)_86%,transparent)] backdrop-blur-md">
@@ -142,14 +145,14 @@ export function SiteHeader({
             </Link>
           ) : showLogin ? (
             <Link
-              href={`/${locale}/login`}
+              href={loginHref}
               className="rounded-xl px-3 py-2 text-sm font-semibold text-muted hover:text-fg"
             >
               {t.login}
             </Link>
           ) : null}
           <Link
-            href={`/${locale}/build`}
+            href={buildHref}
             className={buttonVariants({ size: "sm" })}
           >
             {t.startMenu}
@@ -334,7 +337,7 @@ export function SiteHeader({
                       </Link>
                     ) : showLogin ? (
                       <Link
-                        href={`/${locale}/login`}
+                        href={loginHref}
                         onClick={() => setOpen(false)}
                         className="flex min-h-11 flex-1 items-center justify-center rounded-xl border border-line px-4 text-center text-sm font-semibold transition-all hover:border-[var(--accent)] hover:bg-subtle active:scale-[0.98]"
                       >
@@ -343,7 +346,7 @@ export function SiteHeader({
                     ) : null}
                   </div>
                   <Link
-                    href={`/${locale}/build`}
+                    href={buildHref}
                     onClick={() => setOpen(false)}
                     className={cn(
                       buttonVariants(),

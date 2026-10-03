@@ -49,7 +49,7 @@ export async function PageShell({
         isCreator={isCreator}
         isAdmin={isAdmin}
         userName={userName}
-        showLogin={!isStaticPages}
+        showLogin
         strings={{
           brand: t.common.brand,
           demos: t.nav.demos,

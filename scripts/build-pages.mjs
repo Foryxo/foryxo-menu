@@ -112,6 +112,9 @@ try {
     STATIC_EXPORT: "true",
     NEXT_PUBLIC_BASE_PATH: exportBasePath,
     NEXT_PUBLIC_SITE_URL: exportSiteUrl,
+    NEXT_PUBLIC_ACCOUNT_APP_URL:
+      process.env.NEXT_PUBLIC_ACCOUNT_APP_URL ||
+      "https://foryxo-menu-app.onrender.com",
     APP_URL: exportSiteUrl,
     FORYXO_SKIP_BUILD_TYPECHECK: "1",
   });

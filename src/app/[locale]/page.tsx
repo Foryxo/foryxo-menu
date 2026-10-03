@@ -8,6 +8,7 @@ import { alternatesFor } from "@/domains/seo/hreflang";
 import { buildFaqJsonLd, buildOrganizationJsonLd, buildWebSiteJsonLd } from "@/domains/seo/jsonld";
 import { CulinaryScene } from "@/components/three/culinary-scene";
 import { ArrowUpRight, Check, ChevronDown, Languages, QrCode, ScanLine, Sparkles, Timer, X } from "lucide-react";
+import { accountUrl } from "@/lib/account-url";
 
 interface Props {
   params: Promise<{ locale: string }>;
@@ -46,6 +47,8 @@ export default async function HomePage({ params }: Props) {
   const l = isLocale(locale) ? locale : "fa";
   const t = getDictionary(l);
   const fa = l === "fa";
+  const loginHref = accountUrl(`/${l}/login`);
+  const buildHref = accountUrl(`/${l}/build`);
 
   const steps = [
     { title: t.home.processSteps.s1, body: t.home.processSteps.s1d },
@@ -89,10 +92,16 @@ export default async function HomePage({ params }: Props) {
                 {t.home.heroCtaPrimary}
               </Link>
               <Link
-                href={`/${l}/build`}
+                href={buildHref}
                 className="inline-flex h-12 items-center rounded-xl border border-line bg-elevated px-7 text-sm font-bold transition-all duration-300 hover:-translate-y-1 hover:border-[var(--accent)] hover:bg-subtle hover:shadow-[var(--shadow-card)] active:translate-y-0"
               >
                 {t.home.heroCtaSecondary}
+              </Link>
+              <Link
+                href={loginHref}
+                className="inline-flex h-12 items-center rounded-xl px-5 text-sm font-bold text-muted transition-all duration-300 hover:-translate-y-1 hover:bg-subtle hover:text-fg active:translate-y-0 active:scale-95"
+              >
+                {t.common.login}
               </Link>
             </div>
             <p className="mt-4 text-xs text-muted">{t.home.heroNote}</p>
@@ -247,7 +256,7 @@ export default async function HomePage({ params }: Props) {
             <h2 className="display-2 text-white">{t.home.finalCtaTitle}</h2>
             <p className="mx-auto mt-3 max-w-xl text-white/80">{t.home.finalCtaBody}</p>
             <Link
-              href={`/${l}/build`}
+              href={buildHref}
               className="mt-8 inline-flex h-12 items-center rounded-xl bg-white px-8 text-sm font-extrabold text-[var(--accent)] transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-[0_16px_36px_-18px_rgb(0_0_0/0.55)] active:translate-y-0 active:scale-95"
             >
               {t.home.finalCtaButton}

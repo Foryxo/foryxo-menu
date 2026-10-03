@@ -24,6 +24,7 @@ import { calculateDeliveryEstimate } from "@/domains/builder/delivery";
 import { catalogPrice } from "@/domains/pricing/calculator";
 import { cn } from "@/lib/utils";
 import type { Locale } from "@/domains/i18n/config";
+import { accountUrl } from "@/lib/account-url";
 
 type WizardLabels = Labels;
 
@@ -257,7 +258,9 @@ export function BuilderWizard({
         const data = await res.json();
         setSubmitted({ projectId: data.projectId });
       } else if (res.status === 401) {
-        router.push(`/${locale}/login?next=/${locale}/build`);
+        window.location.assign(
+          accountUrl(`/${locale}/login?next=/${locale}/build`),
+        );
       } else {
         const body = await res.json().catch(() => ({}));
         if (Array.isArray(body.invalidSteps) && body.invalidSteps.length)
@@ -436,7 +439,7 @@ export function BuilderWizard({
               </p>
               {authed === false ? (
                 <Link
-                  href={`/${locale}/login?next=/${locale}/build`}
+                  href={accountUrl(`/${locale}/login?next=/${locale}/build`)}
                   className="inline-flex h-12 items-center rounded-xl accent-bg px-8 text-sm font-bold"
                 >
                   {L.login}
