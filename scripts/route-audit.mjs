@@ -2,10 +2,23 @@
 
 const base = (process.env.AUDIT_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
 const timeoutMs = Number(process.env.AUDIT_TIMEOUT_MS ?? 30_000);
-const auditFetch = (input, init = {}) => fetch(input, {
-  ...init,
-  signal: AbortSignal.timeout(timeoutMs),
-});
+async function auditFetch(input, init = {}) {
+  let lastError;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await fetch(input, {
+        ...init,
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (![429, 502, 503, 504].includes(response.status) || attempt === 2) return response;
+      lastError = new Error(`HTTP ${response.status}`);
+    } catch (error) {
+      lastError = error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+  }
+  throw lastError;
+}
 const localized = [
   "", "about", "blog", "build", "contact", "demos", "faq", "features",
   "how-it-works", "login", "pricing", "privacy", "refund-policy", "register",
@@ -31,9 +44,9 @@ const paths = [
 
 const failures = [];
 // The checked-in local database is a single-process embedded PGlite instance.
-// Production concurrency belongs to the PostgreSQL-backed k6 load test; this
-// sweep is deliberately serial so it validates the rendered content itself.
-const concurrency = 1;
+// Remote deployments use PostgreSQL and can be checked concurrently.
+const isLocal = /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::|\/|$)/.test(base);
+const concurrency = isLocal ? 1 : Number(process.env.AUDIT_CONCURRENCY ?? 3);
 let nextIndex = 0;
 
 async function worker() {
