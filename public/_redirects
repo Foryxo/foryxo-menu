@@ -1,0 +1,17 @@
+# The marketing site is a static Pages export. Keep permanent QR/menu URLs and
+# account-only entry points working by forwarding them to the full-stack app.
+/q/* https://foryxo-menu-app.onrender.com/q/:splat 302
+/menus/* https://foryxo-menu-app.onrender.com/menus/:splat 302
+/orders/* https://foryxo-menu-app.onrender.com/orders/:splat 302
+/fa/login https://foryxo-menu-app.onrender.com/fa/login 302
+/en/login https://foryxo-menu-app.onrender.com/en/login 302
+/fa/register https://foryxo-menu-app.onrender.com/fa/register 302
+/en/register https://foryxo-menu-app.onrender.com/en/register 302
+/fa/status/* https://foryxo-menu-app.onrender.com/fa/status/:splat 302
+/en/status/* https://foryxo-menu-app.onrender.com/en/status/:splat 302
+/fa/dashboard/* https://foryxo-menu-app.onrender.com/fa/dashboard/:splat 302
+/en/dashboard/* https://foryxo-menu-app.onrender.com/en/dashboard/:splat 302
+/fa/creator/* https://foryxo-menu-app.onrender.com/fa/creator/:splat 302
+/en/creator/* https://foryxo-menu-app.onrender.com/en/creator/:splat 302
+/fa/admin/* https://foryxo-menu-app.onrender.com/fa/admin/:splat 302
+/en/admin/* https://foryxo-menu-app.onrender.com/en/admin/:splat 302

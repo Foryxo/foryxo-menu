@@ -1,9 +1,14 @@
 #!/usr/bin/env node
 /** Crawl public sitemap pages and their same-origin links against a local or staging server. */
 const base = new URL(process.env.AUDIT_BASE_URL ?? "http://localhost:3000");
+const timeoutMs = Number(process.env.AUDIT_TIMEOUT_MS ?? 30_000);
+const auditFetch = (input, init = {}) => fetch(input, {
+  ...init,
+  signal: AbortSignal.timeout(timeoutMs),
+});
 const failures = [];
 
-const sitemap = await fetch(new URL("/sitemap.xml", base));
+const sitemap = await auditFetch(new URL("/sitemap.xml", base));
 if (!sitemap.ok) throw new Error(`sitemap.xml returned ${sitemap.status}`);
 const xml = await sitemap.text();
 const sources = [...new Set([...xml.matchAll(/<loc>([^<]+)<\/loc>/g)]
@@ -12,7 +17,7 @@ const sources = [...new Set([...xml.matchAll(/<loc>([^<]+)<\/loc>/g)]
 const links = new Set();
 
 for (const path of sources) {
-  const response = await fetch(new URL(path, base));
+  const response = await auditFetch(new URL(path, base));
   if (!response.ok) {
     failures.push(`${path}: HTTP ${response.status}`);
     continue;
@@ -36,7 +41,7 @@ for (const path of sources) {
 }
 
 for (const path of links) {
-  const response = await fetch(new URL(path, base));
+  const response = await auditFetch(new URL(path, base));
   if (!response.ok) failures.push(`internal link ${path}: HTTP ${response.status}`);
 }
 

@@ -97,6 +97,19 @@ async function pruneOptimizedImageSources(outputRoot) {
   console.log(`Removed ${removed} redundant PNG source files from the deploy artifact.`);
 }
 
+async function writeStaticLlms(outputRoot) {
+  const body = llmsRouteSource.match(/const body = `([\s\S]*?)`;/)?.[1];
+  if (!body) throw new Error("Could not extract llms.txt body from its route");
+  await writeFile(
+    path.join(outputRoot, "llms.txt"),
+    body.replaceAll("${base}", exportSiteUrl),
+  );
+}
+
+const llmsRouteSource = await readFile(
+  path.join(root, "src", "app", "llms.txt", "route.ts"),
+  "utf8",
+);
 await rm(backupRoot, { recursive: true, force: true });
 await mkdir(backupRoot, { recursive: true });
 
@@ -150,6 +163,7 @@ try {
     if (output !== input) await writeFile(file, output);
   }
   await pruneOptimizedImageSources(outputRoot);
+  await writeStaticLlms(outputRoot);
   await writeFile(path.join(outputRoot, ".nojekyll"), "");
 } finally {
   for (let index = disabled.length - 1; index >= 0; index -= 1) {

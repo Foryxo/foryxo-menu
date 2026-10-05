@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 
 const base = (process.env.AUDIT_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
+const timeoutMs = Number(process.env.AUDIT_TIMEOUT_MS ?? 30_000);
+const auditFetch = (input, init = {}) => fetch(input, {
+  ...init,
+  signal: AbortSignal.timeout(timeoutMs),
+});
 const localized = [
   "", "about", "blog", "build", "contact", "demos", "faq", "features",
   "how-it-works", "login", "pricing", "privacy", "refund-policy", "register",
@@ -35,7 +40,7 @@ async function worker() {
   while (nextIndex < paths.length) {
     const path = paths[nextIndex++];
     try {
-      const response = await fetch(`${base}${path}`, { redirect: "follow" });
+      const response = await auditFetch(`${base}${path}`, { redirect: "follow" });
       if (!response.ok) failures.push(`${path} -> ${response.status}`);
       const contentType = response.headers.get("content-type") ?? "";
       if (response.ok && contentType.includes("text/html")) {
@@ -53,7 +58,7 @@ async function worker() {
 await Promise.all(Array.from({ length: concurrency }, () => worker()));
 
 try {
-  const notFoundResponse = await fetch(`${base}/fa/__route-audit-not-found__`, { redirect: "manual" });
+  const notFoundResponse = await auditFetch(`${base}/fa/__route-audit-not-found__`, { redirect: "manual" });
   if (notFoundResponse.status !== 404) failures.push(`/fa/__route-audit-not-found__ -> expected 404, got ${notFoundResponse.status}`);
 } catch (error) {
   failures.push(`/fa/__route-audit-not-found__ -> ${error instanceof Error ? error.message : String(error)}`);
