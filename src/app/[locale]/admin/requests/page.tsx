@@ -8,6 +8,8 @@ import { ChatComposer } from "@/components/creator/chat-composer";
 import { getDb } from "@/domains/db/client";
 import { serviceRequestMessages, user } from "@/domains/db/schema/index";
 import { eq, inArray } from "drizzle-orm";
+import { safeMediaUrl } from "@/domains/storage/attachments";
+import { RequestStatusActions } from "@/components/creator/request-status-actions";
 
 export default async function AdminRequestsPage({
   params,
@@ -51,6 +53,9 @@ export default async function AdminRequestsPage({
                 </div>
                 <p className="mt-2 text-sm leading-6 text-muted">{request.body}</p>
                 <p className="mt-1 text-xs text-muted" dir="ltr">{request.number} · {request.category}</p>
+                {role !== "support" ? (
+                  <RequestStatusActions requestId={request.id} status={request.status} locale={l} />
+                ) : null}
 
                 {role !== "support" && ["open", "quoted"].includes(request.status) ? (
                   <QuoteForm
@@ -71,13 +76,28 @@ export default async function AdminRequestsPage({
                 ) : null}
                 <div className="mt-5 space-y-2 border-t border-line pt-4">
                   <p className="text-xs font-extrabold text-muted">{fa ? "گفت‌وگوی مشتری" : "Customer conversation"}</p>
-                  {messages.filter(({ message }) => message.requestId === request.id && !message.isInternal).map(({ message, author }) => (
-                    <div key={message.id} className="max-w-[88%] rounded-xl bg-subtle p-3">
-                      <p className="mb-1 text-[10px] font-bold text-muted">{author?.name || (fa ? "کاربر" : "User")}</p>
-                      <p className="whitespace-pre-wrap text-sm">{message.body}</p>
-                      <time className="mt-1 block text-[10px] text-muted">{formatDateTime(message.createdAt, l)}</time>
-                    </div>
-                  ))}
+                  {messages.filter(({ message }) => message.requestId === request.id && !message.isInternal).map(({ message, author }) => {
+                    const attachments = (message.attachments ?? []) as { mediaId: string; url: string; filename: string }[];
+                    return (
+                      <div key={message.id} className="max-w-[88%] rounded-xl bg-subtle p-3">
+                        <p className="mb-1 text-[10px] font-bold text-muted">{author?.name || (fa ? "کاربر" : "User")}</p>
+                        <p className="whitespace-pre-wrap text-sm">{message.body}</p>
+                        {attachments.length ? (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {attachments.map((attachment) => {
+                              const href = safeMediaUrl(attachment.url);
+                              return href ? (
+                                <a key={attachment.mediaId} href={href} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-line bg-elevated px-3 py-2 text-xs font-bold hover:text-[var(--accent)]">
+                                  {attachment.filename}
+                                </a>
+                              ) : null;
+                            })}
+                          </div>
+                        ) : null}
+                        <time className="mt-1 block text-[10px] text-muted">{formatDateTime(message.createdAt, l)}</time>
+                      </div>
+                    );
+                  })}
                   <ChatComposer requestId={request.id} businessId={request.businessId} locale={l} />
                 </div>
               </CardContent>

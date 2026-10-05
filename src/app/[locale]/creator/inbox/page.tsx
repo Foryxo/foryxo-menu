@@ -5,6 +5,7 @@ import { formatDateTime } from "@/domains/i18n/format";
 import { getCreatorInbox } from "@/domains/creator/data";
 import { ChatComposer } from "@/components/creator/chat-composer";
 import { safeMediaUrl } from "@/domains/storage/attachments";
+import { RequestStatusActions } from "@/components/creator/request-status-actions";
 
 type Attachment = { mediaId: string; url: string; filename: string; mime: string };
 
@@ -45,6 +46,7 @@ export default async function InboxPage({ params, searchParams }: {
             <header className="border-b border-line pb-4">
               <h2 className="font-extrabold">{selected.request.title}</h2>
               <p className="mt-1 text-xs text-muted">{selected.business.name} · {selected.request.number}</p>
+              <RequestStatusActions requestId={selected.request.id} status={selected.request.status} locale={l} />
             </header>
             <div className="flex-1 space-y-3 overflow-y-auto py-4">
               {messages.map(({ message, author }) => {

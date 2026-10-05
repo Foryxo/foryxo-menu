@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Download, ExternalLink, QrCode, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -63,25 +63,35 @@ export function QrManager({
   const selectedBranchIsAvailable = availableBranches.some((branch) => branch.id === branchId);
   const effectiveBranchId = selected?.branchId ?? (selectedBranchIsAvailable ? branchId : availableBranches.find((branch) => branch.isPrimary)?.id ?? availableBranches[0]?.id ?? "");
 
-  const load = useCallback(async (id: string, selectedBranchId: string) => {
-    if (!id) return;
-    try {
-      const response = await fetch(
-        `/api/creator/qr?menuId=${encodeURIComponent(id)}`,
-        { cache: "no-store" },
-      );
-      const data = await response.json();
-      setCodes(response.ok ? data.codes : []);
-      setTableQrAllowance(response.ok ? data.tableQrAllowance ?? 0 : 0);
-      setTableCount(response.ok ? data.codes.filter((code: Code) => code.tableLabel !== null && code.branchId === selectedBranchId).length : 0);
-    } finally {
-      setBusy(false);
-    }
-  }, []);
-
   useEffect(() => {
-    void load(menuId, effectiveBranchId);
-  }, [effectiveBranchId, load, menuId]);
+    if (!menuId) return;
+    const controller = new AbortController();
+    fetch(`/api/creator/qr?menuId=${encodeURIComponent(menuId)}`, {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "qr_load_failed");
+        return data as { codes: Code[]; tableQrAllowance?: number };
+      })
+      .then((data) => {
+        setCodes(data.codes);
+        setTableQrAllowance(data.tableQrAllowance ?? 0);
+        setTableCount(data.codes.filter((code) => code.tableLabel !== null && code.branchId === effectiveBranchId).length);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setCodes([]);
+        setTableQrAllowance(0);
+        setTableCount(0);
+        setMessage(fa ? "دریافت QRها انجام نشد؛ دوباره تلاش کنید." : "QR codes could not be loaded. Please try again.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setBusy(false);
+      });
+    return () => controller.abort();
+  }, [effectiveBranchId, fa, menuId]);
 
   async function generate() {
     if (!menuId) return;
@@ -150,6 +160,7 @@ export function QrManager({
               value={menuId}
               onChange={(event) => {
                 setBusy(true);
+                setMessage("");
                 setBranchId("");
                 setMenuId(event.target.value);
               }}
@@ -162,7 +173,11 @@ export function QrManager({
             </Select>
           </Field>
           <Field label={fa ? "شعبه میزها" : "Table branch"} htmlFor="qr-branch" hint={selected?.branchId ? (fa ? "این منو به همین شعبه متصل است." : "This menu is assigned to this branch.") : (fa ? "برای منوی مشترک، شعبه میزها را انتخاب کنید." : "Choose the branch for a shared menu's tables.")}>
-            <Select id="qr-branch" value={effectiveBranchId} disabled={Boolean(selected?.branchId)} onChange={(event) => setBranchId(event.target.value)}>
+            <Select id="qr-branch" value={effectiveBranchId} disabled={Boolean(selected?.branchId)} onChange={(event) => {
+              setBusy(true);
+              setMessage("");
+              setBranchId(event.target.value);
+            }}>
               {availableBranches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
             </Select>
           </Field>

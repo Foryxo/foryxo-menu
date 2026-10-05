@@ -5,6 +5,7 @@ import { PageShell } from "@/components/site/page-shell";
 import { DemoPhone } from "@/components/site/demo-phone";
 import { demos, getDemo, demoProductCount } from "@/content/demos/index";
 import { featureByKey } from "@/content/features";
+import { accountUrl } from "@/lib/account-url";
 import { getDictionary, isLocale } from "@/domains/i18n/index";
 import { alternatesFor } from "@/domains/seo/hreflang";
 import { CulinaryScene } from "@/components/three/culinary-scene";
@@ -66,13 +67,13 @@ export default async function DemoDetailPage({
             </p>
             <div className="mt-6 flex flex-col gap-2">
               <Link
-                href={`/menus/${d.id}/menu?lang=${l}`}
+                href={accountUrl(`/menus/${d.id}/menu?lang=${l}`)}
                 className="flex h-12 items-center justify-center rounded-xl accent-bg text-sm font-bold transition-transform hover:-translate-y-0.5"
               >
                 {fa ? "باز کردن منوی کامل" : "Open full live menu"}
               </Link>
               <Link
-                href={`/${l}/build?demo=${d.id}`}
+                href={accountUrl(`/${l}/build?demo=${d.id}`)}
                 className="flex h-12 items-center justify-center rounded-xl border border-[var(--accent)] text-sm font-bold accent-text hover:bg-[var(--accent-soft)]"
               >
                 {t.common.chooseDesign}

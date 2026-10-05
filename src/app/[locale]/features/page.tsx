@@ -6,6 +6,7 @@ import { getDictionary, isLocale } from "@/domains/i18n/index";
 import { alternatesFor } from "@/domains/seo/hreflang";
 import { formatToman } from "@/domains/i18n/format";
 import { CATALOG } from "@/domains/pricing/calculator";
+import { accountUrl } from "@/lib/account-url";
 
 export async function generateMetadata({
   params,
@@ -65,7 +66,7 @@ export default async function FeaturesPage({
         <div className="mt-14 rounded-3xl bg-elevated p-8 text-center shadow-[var(--shadow-card)]">
           <h2 className="display-3">{fa ? "ترکیب دلخواه‌تان را بسازید" : "Compose your own combination"}</h2>
           <Link
-            href={`/${l}/build`}
+            href={accountUrl(`/${l}/build`)}
             className="mt-6 inline-flex h-12 items-center rounded-xl accent-bg px-8 text-sm font-bold"
           >
             {t.nav.startMenu}

@@ -4,6 +4,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { Paperclip, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/primitives";
+import { canAddChatAttachment } from "@/domains/messaging/attachments";
 
 type Attachment = {
   mediaId: string;
@@ -29,6 +30,10 @@ export function ChatComposer({
   const [error, setError] = useState("");
 
   async function upload(file: File) {
+    if (!canAddChatAttachment(attachments.length)) {
+      setError(fa ? "حداکثر ۶ پیوست برای هر پیام مجاز است." : "You can attach up to 6 files per message.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -139,7 +144,7 @@ export function ChatComposer({
           type="button"
           variant="outline"
           size="sm"
-          disabled={busy}
+          disabled={busy || !canAddChatAttachment(attachments.length)}
           onClick={() => fileRef.current?.click()}
         >
           <Paperclip className="size-4" />

@@ -9,6 +9,7 @@ import { alternatesFor } from "@/domains/seo/hreflang";
 import { and, eq } from "drizzle-orm";
 import { getDb } from "@/domains/db/client";
 import { blogPosts } from "@/domains/db/schema/index";
+import { accountUrl } from "@/lib/account-url";
 
 export function generateStaticParams() {
   return blogArticles.flatMap((article) => ["fa", "en"].map((locale) => ({ locale, slug: article.slug })));
@@ -88,7 +89,7 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ lo
         <div className="mt-14 rounded-3xl bg-[var(--accent-soft)] p-7">
           <h2 className="text-xl font-extrabold">{fa ? "منوی خودتان را شروع کنید" : "Start your own menu"}</h2>
           <p className="mt-2 text-sm text-muted">{fa ? "دموهای کامل را ببینید یا مسیر طراحی اختصاصی را انتخاب کنید." : "Explore the full demos or choose a completely custom direction."}</p>
-          <Link href={`/${l}/build`} className="mt-5 inline-flex h-11 items-center rounded-xl accent-bg px-5 text-sm font-bold">{fa ? "ساخت منو" : "Build my menu"}</Link>
+          <Link href={accountUrl(`/${l}/build`)} className="mt-5 inline-flex h-11 items-center rounded-xl accent-bg px-5 text-sm font-bold">{fa ? "ساخت منو" : "Build my menu"}</Link>
         </div>
       </article>
     </PageShell>

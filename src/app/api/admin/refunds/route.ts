@@ -8,11 +8,12 @@ import { z } from "zod";
 import { auth } from "@/domains/auth/server";
 import { getDb } from "@/domains/db/client";
 import { refunds, creditAccounts, payments } from "@/domains/db/schema/index";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { creditService } from "@/domains/wallet/ledger";
 import { getPaymentProviderByName } from "@/domains/payments/index";
 import { audit } from "@/domains/audit/log";
 import { ipRateLimit } from "@/domains/auth/security";
+import { canDecideRefund, REFUND_DECIDABLE_STATUSES } from "@/domains/admin/policies";
 
 const schema = z.object({
   refundId: z.string().uuid(),
@@ -42,15 +43,17 @@ export async function POST(req: NextRequest) {
   const db = getDb();
   const [refund] = await db.select().from(refunds).where(eq(refunds.id, body.data.refundId)).limit(1);
   if (!refund) return NextResponse.json({ error: "not_found" }, { status: 404 });
-  if (!["requested", "reviewing"].includes(refund.status)) {
+  if (!canDecideRefund(refund.status)) {
     return NextResponse.json({ error: "not_decidable" }, { status: 422 });
   }
 
   if (body.data.action === "reject") {
-    await db
+    const [rejected] = await db
       .update(refunds)
       .set({ status: "rejected", rejectionReason: body.data.reason, reviewedBy: session.user.id, reviewedAt: new Date() })
-      .where(eq(refunds.id, refund.id));
+      .where(and(eq(refunds.id, refund.id), inArray(refunds.status, [...REFUND_DECIDABLE_STATUSES])))
+      .returning({ id: refunds.id });
+    if (!rejected) return NextResponse.json({ error: "not_decidable" }, { status: 409 });
     await audit.log({
       actorUserId: session.user.id,
       actorRole: role,
@@ -74,32 +77,41 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "insufficient_refundable_credit" }, { status: 422 });
   }
 
+  // Claim the refund before any ledger or provider side effect. Concurrent
+  // approve/reject requests can no longer act on the same record.
+  const [claimed] = await db
+    .update(refunds)
+    .set({ status: "processing", reviewedBy: session.user.id, reviewedAt: new Date() })
+    .where(and(eq(refunds.id, refund.id), inArray(refunds.status, [...REFUND_DECIDABLE_STATUSES])))
+    .returning();
+  if (!claimed) return NextResponse.json({ error: "not_decidable" }, { status: 409 });
+
   await creditService.postEntry({
     accountId: account.id,
-    amount: refund.amount,
+    amount: claimed.amount,
     direction: "debit",
     category: "refund",
     referenceType: "refund",
-    referenceId: refund.id,
+    referenceId: claimed.id,
     description: "Approved refund debit",
     createdBy: session.user.id,
-    idempotencyKey: `refund-debit-${refund.id}`,
+    idempotencyKey: `refund-debit-${claimed.id}`,
   });
 
   // Attempt provider refund when the original payment supports it.
   let finalStatus = "processing";
-  if (refund.paymentId) {
+  if (claimed.paymentId) {
     const [payment] = await db
       .select()
       .from(payments)
-      .where(eq(payments.id, refund.paymentId))
+      .where(eq(payments.id, claimed.paymentId))
       .limit(1);
     const provider = payment ? getPaymentProviderByName(payment.provider) : null;
     if (payment?.providerRef && provider) {
       const result = await provider.refundPayment({
         providerRef: payment.providerRef,
-        amount: refund.amount,
-        idempotencyKey: `refund-${refund.id}`,
+        amount: claimed.amount,
+        idempotencyKey: `refund-${claimed.id}`,
       });
       if (result.ok) {
         finalStatus = result.status === "completed" ? "completed" : "provider_submitted";
@@ -115,30 +127,30 @@ export async function POST(req: NextRequest) {
   if (finalStatus === "failed") {
     await creditService.postEntry({
       accountId: account.id,
-      amount: refund.amount,
+      amount: claimed.amount,
       direction: "credit",
       category: "adjustment",
       referenceType: "refund_compensation",
-      referenceId: refund.id,
+      referenceId: claimed.id,
       description: "Compensation for failed refund submission",
       createdBy: "system",
-      idempotencyKey: `refund-compensate-${refund.id}`,
+      idempotencyKey: `refund-compensate-${claimed.id}`,
     });
   }
 
   await db
     .update(refunds)
     .set({ status: finalStatus, reviewedBy: session.user.id, reviewedAt: new Date() })
-    .where(eq(refunds.id, refund.id));
+    .where(and(eq(refunds.id, claimed.id), eq(refunds.status, "processing")));
 
   await audit.log({
     actorUserId: session.user.id,
     actorRole: role,
     action: "refund.approve",
     targetType: "refund",
-    targetId: refund.id,
-    businessId: refund.businessId,
-    next: { amount: refund.amount, status: finalStatus },
+    targetId: claimed.id,
+    businessId: claimed.businessId,
+    next: { amount: claimed.amount, status: finalStatus },
   });
 
   return NextResponse.json({ ok: true, status: finalStatus });

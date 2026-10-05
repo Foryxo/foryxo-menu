@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PageShell } from "@/components/site/page-shell";
 import { getDictionary, isLocale } from "@/domains/i18n/index";
 import { alternatesFor } from "@/domains/seo/hreflang";
+import { accountUrl } from "@/lib/account-url";
 
 export async function generateMetadata({
   params,
@@ -81,7 +82,7 @@ export default async function HowItWorksPage({
         <div className="mt-14 rounded-3xl accent-bg p-10 text-center">
           <h2 className="display-3 text-white">{fa ? "همین حالا شروع کنید" : "Start right now"}</h2>
           <Link
-            href={`/${l}/build`}
+            href={accountUrl(`/${l}/build`)}
             className="mt-6 inline-flex h-12 items-center rounded-xl bg-white px-8 text-sm font-extrabold text-[var(--accent)]"
           >
             {t.nav.startMenu}

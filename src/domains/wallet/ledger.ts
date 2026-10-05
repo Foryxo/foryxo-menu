@@ -9,7 +9,7 @@
  * 5. The ledger can never silently create money: credits require a
  *    reference (payment/refund/adjustment-with-audit).
  */
-import { eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/domains/db/client";
 import {
   creditAccounts,
@@ -61,11 +61,50 @@ function assertPositive(amount: number) {
 }
 
 class CreditService {
+  private async getReferenceState(accountId: string, referenceId: string) {
+    const rows = await getDb()
+      .select({ amount: ledgerEntries.amount, category: ledgerEntries.category })
+      .from(ledgerEntries)
+      .where(and(
+        eq(ledgerEntries.accountId, accountId),
+        eq(ledgerEntries.referenceId, referenceId),
+        inArray(ledgerEntries.category, ["hold", "capture", "release", "service_charge"]),
+      ));
+    const holdRows = rows.filter((entry) => entry.category === "hold");
+    const resolvedRows = rows.filter((entry) => entry.category === "capture" || entry.category === "release");
+    return {
+      rows,
+      holdCount: holdRows.length,
+      releaseCount: rows.filter((entry) => entry.category === "release").length,
+      outstanding: Math.max(
+        0,
+        -(
+          holdRows.reduce((total, entry) => total + entry.amount, 0) +
+          resolvedRows.reduce((total, entry) => total + entry.amount, 0)
+        ),
+      ),
+    };
+  }
+
+  async getOutstandingHold(businessId: string, referenceId: string): Promise<number> {
+    const [account] = await getDb()
+      .select({ id: creditAccounts.id })
+      .from(creditAccounts)
+      .where(eq(creditAccounts.businessId, businessId))
+      .limit(1);
+    if (!account) return 0;
+    return (await this.getReferenceState(account.id, referenceId)).outstanding;
+  }
+
   async hasHold(referenceId: string): Promise<boolean> {
     const db = getDb();
-    const [entry] = await db.select({ id: ledgerEntries.id }).from(ledgerEntries)
-      .where(eq(ledgerEntries.idempotencyKey, `hold-${referenceId}`)).limit(1);
-    return Boolean(entry);
+    const [entry] = await db
+      .select({ accountId: ledgerEntries.accountId })
+      .from(ledgerEntries)
+      .where(and(eq(ledgerEntries.referenceId, referenceId), eq(ledgerEntries.category, "hold")))
+      .limit(1);
+    if (!entry) return false;
+    return (await this.getReferenceState(entry.accountId, referenceId)).outstanding > 0;
   }
 
   async ensureAccount(businessId: string): Promise<string> {
@@ -187,28 +226,30 @@ class CreditService {
     assertPositive(opts.amount);
     const db = getDb();
     const accountId = await this.ensureAccount(opts.businessId);
-    const [existing] = await db.select({ id: ledgerEntries.id }).from(ledgerEntries)
-      .where(eq(ledgerEntries.idempotencyKey, `hold-${opts.referenceId}`)).limit(1);
-    if (existing) return;
+    const state = await this.getReferenceState(accountId, opts.referenceId);
+    const amountToHold = opts.amount - state.outstanding;
+    if (amountToHold <= 0) return;
     const balance = await this.getBalance(accountId);
     const held = await this.getHeld(accountId);
-    if (balance < opts.amount) {
+    if (balance < amountToHold) {
       throw new LedgerError("insufficient credit", "INSUFFICIENT_FUNDS");
     }
     await this.postEntry({
       accountId,
-      amount: opts.amount,
+      amount: amountToHold,
       direction: "debit",
       category: "hold",
       referenceType: opts.referenceType,
       referenceId: opts.referenceId,
       description: "Hold for approved work",
       createdBy: opts.createdBy,
-      idempotencyKey: `hold-${opts.referenceId}`,
+      idempotencyKey: state.holdCount === 0
+        ? `hold-${opts.referenceId}`
+        : `hold-${opts.referenceId}-${state.holdCount + 1}`,
     });
     await db
       .update(creditAccounts)
-      .set({ holdsCached: held + opts.amount })
+      .set({ holdsCached: held + amountToHold })
       .where(eq(creditAccounts.id, accountId));
   }
 
@@ -222,6 +263,14 @@ class CreditService {
   }): Promise<void> {
     assertPositive(opts.amount);
     const accountId = await this.ensureAccount(opts.businessId);
+    const state = await this.getReferenceState(accountId, opts.referenceId);
+    const captureKey = `capture-${opts.referenceId}-${opts.amount}`;
+    const chargeKey = `service-charge-${opts.referenceId}-${opts.amount}`;
+    const hasCapture = await getDb().select({ id: ledgerEntries.id }).from(ledgerEntries)
+      .where(eq(ledgerEntries.idempotencyKey, captureKey)).limit(1);
+    if (!hasCapture.length && opts.amount > state.outstanding) {
+      throw new LedgerError("capture exceeds outstanding hold", "HOLD_EXCEEDED");
+    }
     // A hold already reduced the available balance. Capturing releases that
     // portion of the hold and records the final charge with zero net movement,
     // avoiding the former double debit.
@@ -234,7 +283,7 @@ class CreditService {
       referenceId: opts.referenceId,
       description: opts.description ?? "Capture of held funds",
       createdBy: opts.createdBy,
-      idempotencyKey: `capture-${opts.referenceId}-${opts.amount}`,
+      idempotencyKey: captureKey,
     });
     await this.postEntry({
       accountId,
@@ -245,7 +294,7 @@ class CreditService {
       referenceId: opts.referenceId,
       description: opts.description ?? "Charge for completed work",
       createdBy: opts.createdBy,
-      idempotencyKey: `service-charge-${opts.referenceId}-${opts.amount}`,
+      idempotencyKey: chargeKey,
     });
     await getDb().update(creditAccounts).set({
       holdsCached: await this.getHeld(accountId),
@@ -262,16 +311,19 @@ class CreditService {
   }): Promise<void> {
     assertPositive(opts.amount);
     const accountId = await this.ensureAccount(opts.businessId);
+    const state = await this.getReferenceState(accountId, opts.referenceId);
+    const amountToRelease = Math.min(opts.amount, state.outstanding);
+    if (amountToRelease <= 0) return;
     await this.postEntry({
       accountId,
-      amount: opts.amount,
+      amount: amountToRelease,
       direction: "credit",
       category: "release",
       referenceType: "service_request",
       referenceId: opts.referenceId,
       description: "Release of unused hold",
       createdBy: opts.createdBy,
-      idempotencyKey: `release-${opts.referenceId}-${opts.amount}`,
+      idempotencyKey: `release-${opts.referenceId}-${state.releaseCount + 1}`,
     });
     await getDb().update(creditAccounts).set({
       holdsCached: await this.getHeld(accountId),

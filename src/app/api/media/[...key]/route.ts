@@ -26,7 +26,10 @@ export async function GET(
     .from(media)
     .where(or(eq(media.id, requestedKey), eq(media.storageKey, requestedKey)))
     .limit(1);
-  if (!asset || asset.status !== "active" || asset.scanStatus === "flagged") {
+  // Pending objects remain quarantined for everyone, including staff. Raster
+  // uploads become clean after server-side re-encoding; other types require a
+  // scanner to explicitly mark them clean before they can be downloaded.
+  if (!asset || asset.status !== "active" || asset.scanStatus !== "clean") {
     return new NextResponse("not found", { status: 404 });
   }
 
@@ -34,7 +37,7 @@ export async function GET(
   // business logo) are public. Menu documents and conversation attachments
   // always require tenant/staff authorization even when their URL leaks.
   let isPublic = false;
-  if (asset.scanStatus === "clean") {
+  {
     const [primaryImage, galleryImage, publicLogo] = await Promise.all([
       db.select({ id: products.id }).from(products).innerJoin(menus, and(
         eq(products.menuId, menus.id),

@@ -2,17 +2,17 @@ import { NextResponse, type NextRequest } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { audit } from "@/domains/audit/log";
-import { auth } from "@/domains/auth/server";
+import { getActiveApiSession } from "@/domains/auth/api-session";
 import { getDb } from "@/domains/db/client";
 import { businessMembers, orderStatusHistory, orders } from "@/domains/db/schema/index";
 import { sanitizeNote } from "@/lib/utils";
+import { canTransitionOrderStatus } from "@/domains/orders/transitions";
 
 const schema = z.object({ status: z.enum(["accepted", "preparing", "ready", "completed", "rejected"]), note: z.string().max(300).optional().default("") });
-const transitions: Record<string, string[]> = { awaiting_confirmation: ["accepted", "rejected"], accepted: ["preparing", "rejected"], preparing: ["ready"], ready: ["completed"] };
-
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-  const session = await auth.api.getSession({ headers: req.headers });
-  if (!session?.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const authResult = await getActiveApiSession(req.headers);
+  if (!authResult.ok) return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+  const { session } = authResult;
   const body = schema.safeParse(await req.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: "invalid_input" }, { status: 400 });
   const { id } = await ctx.params;
@@ -24,7 +24,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   const hasGlobalAccess = ["superadmin", "creator", "admin"].includes(role);
   if (!hasGlobalAccess && !membership) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   if (!hasGlobalAccess && membership && !["owner", "manager", "order_manager"].includes(membership.role)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  if (!(transitions[order.status] ?? []).includes(body.data.status)) return NextResponse.json({ error: "invalid_transition" }, { status: 409 });
+  if (!canTransitionOrderStatus(order.status, body.data.status)) return NextResponse.json({ error: "invalid_transition" }, { status: 409 });
   if (body.data.status === "rejected" && !body.data.note.trim()) return NextResponse.json({ error: "rejection_reason_required" }, { status: 422 });
   const note = sanitizeNote(body.data.note, 300) || null;
   const updated = await db.transaction(async (tx) => {

@@ -6,6 +6,7 @@ import { getDb } from "@/domains/db/client";
 import { blogPosts, managedDemos, portfolioProjects } from "@/domains/db/schema/index";
 import { ipRateLimit } from "@/domains/auth/security";
 import { audit } from "@/domains/audit/log";
+import { canPublishManagedContent } from "@/domains/admin/policies";
 
 const slug = z.string().min(2).max(100).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 const publicUrl = z.string().min(1).max(1000).refine((value) => value.startsWith("/") || /^https:\/\//i.test(value), "invalid_url");
@@ -28,15 +29,47 @@ export async function POST(req: NextRequest) {
   const raw = await req.json().catch(()=>null); const db = getDb(); let targetId = ""; let entity = "";
   const statusParsed = statusSchema.safeParse(raw);
   if (statusParsed.success) {
-    const table = statusParsed.data.entity === "portfolio" ? portfolioProjects : statusParsed.data.entity === "demo" ? managedDemos : blogPosts;
-    await db.update(table).set({ status: statusParsed.data.status, updatedAt: new Date() }).where(eq(table.id, statusParsed.data.id));
+    if (statusParsed.data.status === "published" && !canPublishManagedContent(actor.role)) {
+      return NextResponse.json({ error: "publishing_requires_admin" }, { status: 403 });
+    }
+    const now = new Date();
+    let updated: { id: string } | undefined;
+    if (statusParsed.data.entity === "portfolio") {
+      [updated] = await db
+        .update(portfolioProjects)
+        .set({ status: statusParsed.data.status, updatedAt: now, ...(statusParsed.data.status === "published" ? { launchedAt: now } : {}) })
+        .where(eq(portfolioProjects.id, statusParsed.data.id))
+        .returning({ id: portfolioProjects.id });
+    } else if (statusParsed.data.entity === "demo") {
+      [updated] = await db
+        .update(managedDemos)
+        .set({ status: statusParsed.data.status, updatedAt: now })
+        .where(eq(managedDemos.id, statusParsed.data.id))
+        .returning({ id: managedDemos.id });
+    } else {
+      [updated] = await db
+        .update(blogPosts)
+        .set({
+          status: statusParsed.data.status,
+          updatedAt: now,
+          ...(statusParsed.data.status === "published"
+            ? { publishedAt: now, reviewedAt: now, reviewedBy: actor.session.user.id }
+            : {}),
+        })
+        .where(eq(blogPosts.id, statusParsed.data.id))
+        .returning({ id: blogPosts.id });
+    }
+    if (!updated) return NextResponse.json({ error: "not_found" }, { status: 404 });
     targetId = statusParsed.data.id; entity = statusParsed.data.entity;
   } else {
     const parsed = createSchema.safeParse(raw); if (!parsed.success) return NextResponse.json({ error: "invalid_input", fields: parsed.error.flatten() }, { status: 400 });
     const item = parsed.data; entity = item.entity;
+    if (item.status === "published" && !canPublishManagedContent(actor.role)) {
+      return NextResponse.json({ error: "publishing_requires_admin" }, { status: 403 });
+    }
     if (item.entity === "portfolio") { const [row] = await db.insert(portfolioProjects).values({ ...item, id: crypto.randomUUID(), launchedAt: item.status === "published" ? new Date() : null, createdBy: actor.session.user.id }).returning(); targetId = row.id; }
     else if (item.entity === "demo") { const [row] = await db.insert(managedDemos).values({ ...item, id: crypto.randomUUID(), createdBy: actor.session.user.id }).returning(); targetId = row.id; }
-    else { const [row] = await db.insert(blogPosts).values({ id: crypto.randomUUID(), locale: item.locale, slug: item.slug, title: item.title, excerpt: item.excerpt, content: item.content, author: actor.session.user.name || "Foryxo Menu", status: item.status, category: item.category, heroMediaId: item.heroUrl, seoTitle: item.seoTitle, seoDescription: item.seoDescription, publishedAt: item.status === "published" ? new Date() : null }).returning(); targetId = row.id; }
+    else { const publishedAt = item.status === "published" ? new Date() : null; const [row] = await db.insert(blogPosts).values({ id: crypto.randomUUID(), locale: item.locale, slug: item.slug, title: item.title, excerpt: item.excerpt, content: item.content, author: actor.session.user.name || "Foryxo Menu", status: item.status, category: item.category, heroMediaId: item.heroUrl, seoTitle: item.seoTitle, seoDescription: item.seoDescription, publishedAt, reviewedAt: publishedAt, reviewedBy: publishedAt ? actor.session.user.id : null }).returning(); targetId = row.id; }
   }
   await audit.log({ actorUserId: actor.session.user.id, actorRole: actor.role, action: `content.${raw.action}`, targetType: entity, targetId });
   return NextResponse.json({ ok: true, id: targetId });

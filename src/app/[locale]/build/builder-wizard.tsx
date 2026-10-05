@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Field, Badge } from "@/components/ui/primitives";
 import { demos } from "@/content/demos/index";
@@ -118,7 +118,6 @@ export function BuilderWizard({
   presetDemo: string | null;
   labels: WizardLabels;
 }) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const selectedPreset = presetDemo ?? searchParams.get("demo");
   const fa = locale === "fa";

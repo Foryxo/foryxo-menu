@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { publicPath } from "@/lib/public-path";
@@ -13,6 +13,10 @@ import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/brand/brand-mark";
 import { localizedSafeNext } from "@/domains/i18n/safe-next";
 import { accountUrl } from "@/lib/account-url";
+import {
+  LOCALE_STORAGE_KEY,
+  localePreferenceCookie,
+} from "@/lib/locale-preference";
 
 export interface HeaderStrings {
   brand: string;
@@ -49,20 +53,59 @@ export function SiteHeader({
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const reduceMotion = useReducedMotion();
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const mobilePanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
 
     const previousOverflow = document.body.style.overflow;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+    const menuButton = menuButtonRef.current;
+    const previousActive = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const focusableSelector = [
+      "a[href]",
+      "button:not([disabled])",
+      "input:not([disabled])",
+      "select:not([disabled])",
+      "textarea:not([disabled])",
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(",");
+    const focusFirst = window.requestAnimationFrame(() => {
+      mobilePanelRef.current
+        ?.querySelector<HTMLElement>(focusableSelector)
+        ?.focus();
+    });
+    const containFocus = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const controls = Array.from(
+        mobilePanelRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ?? [],
+      ).filter((element) => !element.hasAttribute("disabled") && element.offsetParent !== null);
+      if (!controls.length) return;
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
 
     document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", closeOnEscape);
+    window.addEventListener("keydown", containFocus);
     return () => {
+      window.cancelAnimationFrame(focusFirst);
       document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", closeOnEscape);
+      window.removeEventListener("keydown", containFocus);
+      (previousActive ?? menuButton)?.focus();
     };
   }, [open]);
 
@@ -160,6 +203,7 @@ export function SiteHeader({
         </div>
 
         <button
+          ref={menuButtonRef}
           type="button"
           className="group relative ms-auto grid size-10 place-items-center overflow-hidden rounded-xl border border-transparent text-fg transition-all duration-300 hover:border-line hover:bg-subtle hover:shadow-[var(--shadow-card)] active:scale-90 md:hidden"
           aria-expanded={open}
@@ -241,6 +285,10 @@ export function SiteHeader({
               exit={reduceMotion ? undefined : { opacity: 0 }}
             />
             <motion.div
+              ref={mobilePanelRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label={t.menuToggle}
               className="absolute inset-x-3 top-3 max-h-[calc(100dvh-5.5rem)] overflow-y-auto rounded-[1.75rem] border border-line bg-elevated p-3 shadow-[0_24px_80px_-24px_rgb(0_0_0/0.45)]"
               initial={
                 reduceMotion ? false : { opacity: 0, y: -22, scale: 0.975 }
@@ -404,7 +452,10 @@ function LocaleSwitch({
       href={href}
       onClick={(event) => {
         event.preventDefault();
-        document.cookie = `foryxo_locale=${nextLocale}; Path=/; Max-Age=31536000; SameSite=Lax`;
+        document.cookie = localePreferenceCookie(nextLocale);
+        try {
+          localStorage.setItem(LOCALE_STORAGE_KEY, nextLocale);
+        } catch {}
         router.push(`${href}${window.location.hash}`);
       }}
       className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-semibold text-muted hover:bg-subtle hover:text-fg"

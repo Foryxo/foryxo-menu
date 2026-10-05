@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useState } from "react";
 import { Headphones, MessageCircle, Plus, Sparkles, X } from "lucide-react";
 import type { Locale } from "@/domains/i18n/config";
+import { accountUrl } from "@/lib/account-url";
 
 export function QuickActions({ locale, isAuthenticated = false }: { locale: Locale; isAuthenticated?: boolean }) {
   const [open, setOpen] = useState(false);
   const fa = locale === "fa";
   const actions = [
     { href: isAuthenticated ? `/${locale}/dashboard/requests` : `/${locale}/contact`, label: fa ? "پشتیبانی و تیکت" : "Support & tickets", Icon: Headphones },
-    { href: `/${locale}/build`, label: fa ? "شروع ساخت منو" : "Start a menu", Icon: Sparkles },
+    { href: accountUrl(`/${locale}/build`), label: fa ? "شروع ساخت منو" : "Start a menu", Icon: Sparkles },
     { href: "https://wa.me/989109855546", label: fa ? "گفت‌وگو در واتساپ" : "Chat on WhatsApp", Icon: MessageCircle, external: true },
   ];
 

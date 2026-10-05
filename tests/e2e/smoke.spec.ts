@@ -169,6 +169,15 @@ test("mobile navigation animates open and closes without leaving the page locked
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByRole("navigation", { name: "Mobile" })).toBeVisible();
+  const dialog = page.getByRole("dialog", { name: "Toggle menu" });
+  await expect(dialog).toBeVisible();
+  await expect.poll(() => dialog.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+  const focusable = dialog.locator("a[href], button:not([disabled]), [tabindex]:not([tabindex='-1'])");
+  const first = focusable.first();
+  const last = focusable.last();
+  await last.focus();
+  await page.keyboard.press("Tab");
+  await expect(first).toBeFocused();
   await expect(page.locator("body")).toHaveCSS("overflow", "hidden");
   await page.keyboard.press("Escape");
   await expect(toggle).toHaveAttribute("aria-expanded", "false");

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { auth } from "@/domains/auth/server";
+import { getActiveApiSession } from "@/domains/auth/api-session";
 import { ipRateLimit } from "@/domains/auth/security";
 import { requireFinanceBusiness } from "@/domains/dashboard/data";
 import { getDb } from "@/domains/db/client";
@@ -23,8 +23,9 @@ export async function POST(req: NextRequest) {
   const limit = await ipRateLimit(ip, "quote-respond", 20, 3600);
   if (!limit.allowed) return NextResponse.json({ error: "rate_limited" }, { status: 429 });
 
-  const session = await auth.api.getSession({ headers: req.headers });
-  if (!session?.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const authResult = await getActiveApiSession(req.headers);
+  if (!authResult.ok) return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+  const { session } = authResult;
   const parsed = inputSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "invalid_input" }, { status: 400 });
 
@@ -60,12 +61,14 @@ export async function POST(req: NextRequest) {
 
   let paymentRequired = false;
   let invoiceId: string | null = null;
+  let holdBacked = false;
   try {
     if (quote.amount > 0) {
       const accountId = await creditService.ensureAccount(request.businessId);
       const balance = await creditService.getBalance(accountId);
-      const alreadyHeld = await creditService.hasHold(quote.id);
-      if (alreadyHeld || balance >= quote.amount) {
+      const outstandingHold = await creditService.getOutstandingHold(request.businessId, quote.id);
+      const remainingHold = Math.max(0, quote.amount - outstandingHold);
+      if (outstandingHold >= quote.amount || balance >= remainingHold) {
         await creditService.placeHold({
           businessId: request.businessId,
           amount: quote.amount,
@@ -73,6 +76,7 @@ export async function POST(req: NextRequest) {
           referenceId: quote.id,
           createdBy: session.user.id,
         });
+        holdBacked = true;
       } else {
         paymentRequired = true;
         const [existingInvoice] = await db.select().from(invoices).where(eq(invoices.quoteId, quote.id)).limit(1);
@@ -101,11 +105,27 @@ export async function POST(req: NextRequest) {
       .set({ status: "approved", approvedAt: new Date() })
       .where(and(eq(serviceQuotes.id, quote.id), eq(serviceQuotes.status, "processing")))
       .returning();
-    if (!updated) return NextResponse.json({ error: "quote_not_pending" }, { status: 409 });
+    if (!updated) throw new Error("quote_claim_lost");
     await db.update(serviceRequests).set({ status: "quote_approved", updatedAt: new Date() }).where(eq(serviceRequests.id, request.id));
   } catch {
-    // Holds and invoice creation are idempotent. Returning to pending gives the
-    // customer a safe retry path after transient database/provider failures.
+    // Compensate a successful hold before reopening the quote. The ledger
+    // records every retry cycle separately, so a later approval can reserve
+    // the funds again without leaving an orphaned hold behind.
+    if (holdBacked) {
+      try {
+        const outstanding = await creditService.getOutstandingHold(request.businessId, quote.id);
+        if (outstanding > 0) {
+          await creditService.release({
+            businessId: request.businessId,
+            referenceId: quote.id,
+            amount: outstanding,
+            createdBy: session.user.id,
+          });
+        }
+      } catch {
+        return NextResponse.json({ error: "quote_compensation_failed" }, { status: 503 });
+      }
+    }
     await db.update(serviceQuotes).set({ status: "pending" }).where(and(eq(serviceQuotes.id, quote.id), eq(serviceQuotes.status, "processing"))).catch(() => undefined);
     return NextResponse.json({ error: "quote_processing_failed" }, { status: 503 });
   }

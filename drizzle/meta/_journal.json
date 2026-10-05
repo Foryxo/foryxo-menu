@@ -57,6 +57,13 @@
       "when": 1789234763210,
       "tag": "0007_unknown_black_tom",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791156634734,
+      "tag": "0008_bind_project_menus",
+      "breakpoints": true
     }
   ]
 }

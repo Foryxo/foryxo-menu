@@ -15,21 +15,24 @@ export default async function AdminOverview({
   const l = isLocale(locale) ? locale : "fa";
   const fa = l === "fa";
   const t = getDictionary(l);
-  await requireAdmin(`/${l}/admin`, ["superadmin", "admin", "finance", "support", "editor"]);
-  const data = await getAdminOverview();
+  const { role } = await requireAdmin(`/${l}/admin`, ["superadmin", "admin", "finance", "support", "editor"]);
+  const data = await getAdminOverview(role);
   const nd = (n: number | string) => (fa ? toPersianDigits(n) : String(n));
 
-  const kpis: { label: string; value: string; tone?: string }[] = [
-    { label: t.admin.kpi.signups, value: nd(data.kpis.totalUsers), tone: fa ? `${nd(data.kpis.newSignups)} جدید` : `${nd(data.kpis.newSignups)} new` },
-    { label: t.admin.kpi.activeClients, value: nd(data.kpis.activeClients) },
-    { label: t.admin.kpi.publishedMenus, value: nd(data.kpis.publishedMenus) },
-    { label: t.admin.kpi.pendingBuilds, value: nd(data.kpis.pendingBuilds) },
-    { label: t.admin.kpi.openRequests, value: nd(data.kpis.openRequests) },
-    { label: t.admin.kpi.revenue, value: formatToman(data.kpis.revenue, l) },
-    { label: t.admin.kpi.refunds, value: formatToman(data.kpis.refunds, l) },
-    { label: t.admin.kpi.walletLiability, value: formatToman(data.kpis.walletLiability, l) },
-    { label: t.admin.kpi.failedPayments, value: nd(data.kpis.failedPayments) },
-  ];
+  const kpis: { label: string; value: string; tone?: string }[] = [];
+  if (data.access.users) kpis.push({ label: t.admin.kpi.signups, value: nd(data.kpis.totalUsers), tone: fa ? `${nd(data.kpis.newSignups)} جدید` : `${nd(data.kpis.newSignups)} new` });
+  if (data.access.clients) kpis.push({ label: t.admin.kpi.activeClients, value: nd(data.kpis.activeClients) });
+  if (data.access.menus) kpis.push({ label: t.admin.kpi.publishedMenus, value: nd(data.kpis.publishedMenus) });
+  if (data.access.projects) kpis.push({ label: t.admin.kpi.pendingBuilds, value: nd(data.kpis.pendingBuilds) });
+  if (data.access.requests) kpis.push({ label: t.admin.kpi.openRequests, value: nd(data.kpis.openRequests) });
+  if (data.access.payments) {
+    kpis.push(
+      { label: t.admin.kpi.revenue, value: formatToman(data.kpis.revenue, l) },
+      { label: t.admin.kpi.refunds, value: formatToman(data.kpis.refunds, l) },
+      { label: t.admin.kpi.walletLiability, value: formatToman(data.kpis.walletLiability, l) },
+      { label: t.admin.kpi.failedPayments, value: nd(data.kpis.failedPayments) },
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -48,7 +51,7 @@ export default async function AdminOverview({
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <Card>
+        {data.access.projects ? <Card>
           <CardContent>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-extrabold">{t.admin.projects}</h2>
@@ -71,9 +74,9 @@ export default async function AdminOverview({
               {data.recentProjects.length === 0 ? <li className="py-3 text-muted">{t.common.empty}</li> : null}
             </ul>
           </CardContent>
-        </Card>
+        </Card> : null}
 
-        <Card>
+        {data.access.payments ? <Card>
           <CardContent>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-extrabold">{t.admin.payments}</h2>
@@ -96,7 +99,7 @@ export default async function AdminOverview({
               {data.recentPayments.length === 0 ? <li className="py-3 text-muted">{t.common.empty}</li> : null}
             </ul>
           </CardContent>
-        </Card>
+        </Card> : null}
       </div>
     </div>
   );

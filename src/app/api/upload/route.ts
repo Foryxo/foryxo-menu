@@ -7,8 +7,8 @@ import { getDb } from "@/domains/db/client";
 
 const db = getDb();
 import { media, businessMembers, projectFiles, projects } from "@/domains/db/schema/index";
-import { and, desc, eq } from "drizzle-orm";
-import { auth } from "@/domains/auth/server";
+import { and, desc, eq, inArray } from "drizzle-orm";
+import { getActiveApiSession } from "@/domains/auth/api-session";
 import {
   getStorage,
   buildStorageKey,
@@ -31,10 +31,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "rate_limited" }, { status: 429 });
   }
 
-  const session = await auth.api.getSession({ headers: req.headers });
-  if (!session?.user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const authResult = await getActiveApiSession(req.headers);
+  if (!authResult.ok) return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+  const { session } = authResult;
 
   const form = await req.formData().catch(() => null);
   if (!form) return NextResponse.json({ error: "bad_request" }, { status: 400 });
@@ -139,7 +138,10 @@ export async function POST(req: NextRequest) {
   const [project] = await db
     .select({ id: projects.id })
     .from(projects)
-    .where(eq(projects.businessId, businessId))
+    .where(and(
+      eq(projects.businessId, businessId),
+      inArray(projects.status, ["submitted", "quoted", "approved", "in_build", "review", "revision"]),
+    ))
     .orderBy(desc(projects.createdAt))
     .limit(1);
   if (project && PROJECT_ASSET_KINDS.has(kind)) {

@@ -9,6 +9,7 @@ import { getDictionary, isLocale } from "@/domains/i18n/index";
 import { alternatesFor } from "@/domains/seo/hreflang";
 import { getDb } from "@/domains/db/client";
 import { managedDemos } from "@/domains/db/schema/index";
+import { accountUrl } from "@/lib/account-url";
 
 export async function generateMetadata({
   params,
@@ -71,7 +72,7 @@ export default async function DemosPage({
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <Link
-                  href={`/menus/${d.id}/menu?lang=${l}`}
+                  href={accountUrl(`/menus/${d.id}/menu?lang=${l}`)}
                   className="col-span-2 flex h-11 items-center justify-center rounded-xl accent-bg text-sm font-bold transition-transform hover:-translate-y-0.5"
                 >
                   {fa ? "باز کردن منوی کامل" : "Open full live menu"}
@@ -83,7 +84,7 @@ export default async function DemosPage({
                   {fa ? "جزئیات و پیش‌نمایش" : "Details & preview"}
                 </Link>
                 <Link
-                  href={`/${l}/build?demo=${d.id}`}
+                  href={accountUrl(`/${l}/build?demo=${d.id}`)}
                   className="flex h-10 flex-1 items-center justify-center rounded-xl accent-bg text-sm font-bold"
                 >
                   {t.common.chooseDesign}
@@ -101,8 +102,8 @@ export default async function DemosPage({
                 <h2 className="mt-2 text-lg font-extrabold">{fa ? d.titleFa : d.titleEn}</h2>
                 <p className="mt-2 flex-1 text-sm leading-6 text-muted">{fa ? d.descriptionFa : d.descriptionEn}</p>
                 <div className="mt-5 grid grid-cols-2 gap-2">
-                  <Link href={d.liveMenuUrl} className="col-span-2 flex h-11 items-center justify-center rounded-xl accent-bg text-sm font-bold">{fa ? "باز کردن منوی زنده" : "Open live menu"}</Link>
-                  <Link href={`/${l}/build?demo=${d.slug}`} className="col-span-2 flex h-10 items-center justify-center rounded-xl border border-line text-sm font-bold hover:bg-subtle">{t.common.chooseDesign}</Link>
+                  <Link href={d.liveMenuUrl.startsWith("/") ? accountUrl(d.liveMenuUrl) : d.liveMenuUrl} className="col-span-2 flex h-11 items-center justify-center rounded-xl accent-bg text-sm font-bold">{fa ? "باز کردن منوی زنده" : "Open live menu"}</Link>
+                  <Link href={accountUrl(`/${l}/build?demo=${d.slug}`)} className="col-span-2 flex h-10 items-center justify-center rounded-xl border border-line text-sm font-bold hover:bg-subtle">{t.common.chooseDesign}</Link>
                 </div>
               </div>
             </article>

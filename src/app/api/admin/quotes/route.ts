@@ -4,7 +4,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { auth } from "@/domains/auth/server";
+import { getActiveApiSession } from "@/domains/auth/api-session";
 import { getDb } from "@/domains/db/client";
 import { serviceRequests, serviceQuotes } from "@/domains/db/schema/index";
 import { and, eq } from "drizzle-orm";
@@ -25,8 +25,9 @@ export async function POST(req: NextRequest) {
   const rl = await ipRateLimit(ip, "admin-quote", 60, 3600);
   if (!rl.allowed) return NextResponse.json({ error: "rate_limited" }, { status: 429 });
 
-  const session = await auth.api.getSession({ headers: req.headers });
-  if (!session?.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const authResult = await getActiveApiSession(req.headers);
+  if (!authResult.ok) return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+  const { session } = authResult;
   const role = (session.user as { role?: string }).role ?? "";
   if (!["superadmin", "creator", "admin"].includes(role)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });

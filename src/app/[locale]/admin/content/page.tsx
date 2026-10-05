@@ -17,7 +17,8 @@ export default async function ContentPage({
   const { locale } = await params;
   const l = isLocale(locale) ? locale : "fa";
   const fa = l === "fa";
-  await requireAdmin(`/${l}/admin/content`, ["superadmin", "admin", "editor"]);
+  const { role } = await requireAdmin(`/${l}/admin/content`, ["superadmin", "admin", "editor"]);
+  const canPublish = role === "superadmin" || role === "admin";
   const db = getDb();
   const [work, demos, posts] = await Promise.all([
     db
@@ -42,7 +43,7 @@ export default async function ContentPage({
             : "Upload and publish demos, completed work, and blog posts."}
         </p>
       </div>
-      <ContentManager locale={l} />
+      <ContentManager locale={l} canPublish={canPublish} />
       <div className="grid gap-5 xl:grid-cols-3">
         {(
           [
@@ -77,6 +78,7 @@ export default async function ContentPage({
                       id={row.id}
                       status={row.status}
                       locale={l}
+                      canPublish={canPublish}
                     />
                   </div>
                 ))}

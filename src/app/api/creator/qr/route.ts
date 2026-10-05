@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { auth } from "@/domains/auth/server";
+import { getActiveApiSession } from "@/domains/auth/api-session";
 import { ipRateLimit } from "@/domains/auth/security";
 import { ensureMenuQrCodes, listMenuQrCodes } from "@/domains/qr/service";
 import { audit } from "@/domains/audit/log";
@@ -12,13 +12,18 @@ import { eq } from "drizzle-orm";
 const inputSchema = z.object({ menuId: z.string().uuid(), branchId: z.string().uuid().nullable().optional(), tableCount: z.number().int().min(0).max(500), overrideReason: z.string().trim().min(15).max(300).optional() });
 
 async function staff(req: NextRequest) {
-  const session = await auth.api.getSession({ headers: req.headers }).catch(() => null);
-  const role = (session?.user as { role?: string } | undefined)?.role ?? "";
-  return session?.user && ["superadmin", "creator", "admin", "editor"].includes(role) ? { session, role } : null;
+  const authResult = await getActiveApiSession(req.headers);
+  if (!authResult.ok) return authResult;
+  const role = (authResult.session.user as { role?: string }).role ?? "";
+  if (!["superadmin", "creator", "admin", "editor"].includes(role)) {
+    return { ok: false as const, error: "forbidden" as const, status: 403 as const };
+  }
+  return { ok: true as const, session: authResult.session, role };
 }
 
 export async function GET(req: NextRequest) {
-  if (!(await staff(req))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const actor = await staff(req);
+  if (!actor.ok) return NextResponse.json({ error: actor.error }, { status: actor.status });
   const menuId = req.nextUrl.searchParams.get("menuId");
   if (!menuId || !z.string().uuid().safeParse(menuId).success) return NextResponse.json({ error: "invalid_menu" }, { status: 400 });
   return NextResponse.json({ ok: true, codes: await listMenuQrCodes(menuId), tableQrAllowance: await getTableQrAllowance(menuId) });
@@ -29,7 +34,7 @@ export async function POST(req: NextRequest) {
   const limit = await ipRateLimit(ip, "creator-qr", 40, 3600);
   if (!limit.allowed) return NextResponse.json({ error: "rate_limited" }, { status: 429 });
   const actor = await staff(req);
-  if (!actor) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  if (!actor.ok) return NextResponse.json({ error: actor.error }, { status: actor.status });
   const parsed = inputSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "invalid_input", fields: parsed.error.flatten() }, { status: 400 });
   try {

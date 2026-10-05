@@ -56,6 +56,7 @@ export async function getCreatorProjects() {
           inArray(projectFiles.projectId, projectIds),
           inArray(projectFiles.kind, ["food_photo", "photos", "logo", "menu_doc", "spreadsheet", "other"]),
           eq(media.status, "active"),
+          eq(media.scanStatus, "clean"),
         ))
         .orderBy(desc(projectFiles.createdAt))
     : [];
@@ -70,7 +71,7 @@ export async function getCreatorFoodAssets() {
     .from(media)
     .innerJoin(businesses, eq(media.businessId, businesses.id))
     .leftJoin(user, eq(media.uploadedBy, user.id))
-    .where(and(eq(media.kind, "food_photo"), eq(media.status, "active")))
+    .where(and(eq(media.kind, "food_photo"), eq(media.status, "active"), eq(media.scanStatus, "clean")))
     .orderBy(desc(media.updatedAt))
     .limit(500);
 }

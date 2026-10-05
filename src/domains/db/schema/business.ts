@@ -147,6 +147,7 @@ export const projects = pgTable(
   (t) => [
     index("project_biz_idx").on(t.businessId),
     index("project_status_idx").on(t.status),
+    index("project_menu_idx").on(t.menuId),
   ],
 );
 

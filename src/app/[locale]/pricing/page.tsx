@@ -5,6 +5,7 @@ import { getDictionary, isLocale } from "@/domains/i18n/index";
 import { alternatesFor } from "@/domains/seo/hreflang";
 import { formatToman } from "@/domains/i18n/format";
 import { CATALOG } from "@/domains/pricing/calculator";
+import { accountUrl } from "@/lib/account-url";
 
 export async function generateMetadata({
   params,
@@ -96,7 +97,7 @@ export default async function PricingPage({
                 <span className="block text-xs font-semibold text-muted">{t.pricing.setup}</span>
               </p>
               <Link
-                href={`/${l}/build`}
+                href={accountUrl(`/${l}/build`)}
                 className="mt-6 flex h-11 items-center justify-center rounded-xl accent-bg text-sm font-bold"
               >
                 {t.nav.startMenu}

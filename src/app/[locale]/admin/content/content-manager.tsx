@@ -4,7 +4,7 @@ import { Upload, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea } from "@/components/ui/primitives";
 
-export function ContentManager({ locale }: { locale: "fa" | "en" }) {
+export function ContentManager({ locale, canPublish }: { locale: "fa" | "en"; canPublish: boolean }) {
   const fa = locale === "fa";
   const [type, setType] = useState<"portfolio" | "demo" | "blog">("portfolio");
   const [imageUrl, setImageUrl] = useState("");
@@ -131,7 +131,7 @@ export function ContentManager({ locale }: { locale: "fa" | "en" }) {
           <span className="mb-1.5 block">{fa ? "وضعیت" : "Status"}</span>
           <Select name="status" defaultValue="draft">
             <option value="draft">Draft</option>
-            <option value="published">Published</option>
+            {canPublish ? <option value="published">Published</option> : null}
           </Select>
         </label>
         {type !== "blog" ? (
@@ -298,15 +298,20 @@ export function StatusButton({
   id,
   status,
   locale,
+  canPublish,
 }: {
   entity: "portfolio" | "demo" | "blog";
   id: string;
   status: string;
   locale: "fa" | "en";
+  canPublish: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const next = status === "published" ? "draft" : "published";
+  if (next === "published" && !canPublish) {
+    return <span className="text-xs font-bold text-muted">{locale === "fa" ? "نیازمند تأیید مدیر" : "Admin review required"}</span>;
+  }
   return (
     <div>
     <Button

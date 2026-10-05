@@ -11,6 +11,7 @@ export async function resolveBusinessAttachments(businessId: string, ids: string
     inArray(media.id, ids),
     eq(media.businessId, businessId),
     eq(media.status, "active"),
+    eq(media.scanStatus, "clean"),
   )) : [];
   if (rows.length !== ids.length) return null;
   const byId = new Map(rows.map((row) => [row.id, row]));

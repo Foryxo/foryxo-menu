@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { builderConfigSchema } from "@/domains/builder/config";
 import { getDb } from "@/domains/db/client";
 import { invoices, ledgerEntries, menus, projects, serviceQuotes, serviceRequests } from "@/domains/db/schema/index";
@@ -16,17 +16,42 @@ export function additionalTableQrCodes(
   return Math.max(0, requestedCount - covered.size);
 }
 
+/**
+ * Old projects predate the project→menu link. They are safe to use only when
+ * the business has exactly one menu, making the intended menu unambiguous.
+ */
+export function projectCanFundMenu(
+  projectMenuId: string | null,
+  requestedMenuId: string,
+  businessMenuCount: number,
+): boolean {
+  return projectMenuId === requestedMenuId || (projectMenuId === null && businessMenuCount === 1);
+}
+
 /** Paid table-QR allowance from the immutable builder order, never a UI count. */
 export async function getTableQrAllowance(menuId: string): Promise<number> {
   const db = getDb();
   const [menu] = await db.select({ businessId: menus.businessId }).from(menus).where(eq(menus.id, menuId)).limit(1);
   if (!menu) return 0;
 
-  const [project] = await db.select().from(projects).where(and(
+  let [project] = await db.select().from(projects).where(and(
     eq(projects.businessId, menu.businessId),
     ne(projects.status, "cancelled"),
+    eq(projects.menuId, menuId),
   )).orderBy(desc(projects.createdAt)).limit(1);
-  if (!project || (project.menuId && project.menuId !== menuId)) return 0;
+
+  if (!project) {
+    const businessMenus = await db.select({ id: menus.id }).from(menus)
+      .where(eq(menus.businessId, menu.businessId))
+      .limit(2);
+    if (!projectCanFundMenu(null, menuId, businessMenus.length)) return 0;
+    [project] = await db.select().from(projects).where(and(
+      eq(projects.businessId, menu.businessId),
+      ne(projects.status, "cancelled"),
+      isNull(projects.menuId),
+    )).orderBy(desc(projects.createdAt)).limit(1);
+  }
+  if (!project || !projectCanFundMenu(project.menuId, menuId, 1)) return 0;
   const parsed = builderConfigSchema.safeParse(project.configuration);
   if (!parsed.success || !parsed.data.features.includes("table_qr")) return 0;
   const ordered = parsed.data.qrTableCount;

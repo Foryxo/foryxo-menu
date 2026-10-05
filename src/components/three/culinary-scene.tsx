@@ -110,7 +110,11 @@ export function CulinaryScene({ variant = "hero" }: { variant?: "hero" | "demo" 
     <div ref={hostRef} className={`relative ${variant === "hero" ? "h-[360px] w-full md:h-[470px]" : "h-52 w-full"}`} aria-hidden="true">
       <div className={`absolute inset-0 grid place-items-center transition-opacity duration-500 ${ready ? "opacity-0" : "opacity-100"}`}>
         <span className="absolute size-24 animate-ping rounded-full bg-brand/15 motion-reduce:animate-none" />
-        <BrandMark size={variant === "hero" ? 84 : 64} className="brand-loader-mark opacity-70" />
+        <BrandMark
+          size={variant === "hero" ? 84 : 64}
+          className="brand-loader-mark opacity-70"
+          priority={variant === "hero"}
+        />
       </div>
       <canvas ref={canvasRef} className={`relative block size-full transition-opacity duration-500 ${ready ? "opacity-100" : "opacity-0"}`} />
     </div>
